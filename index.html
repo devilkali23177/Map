@@ -1,0 +1,2728 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MindMapper Pro - Advanced Collaborative Mind Mapping</title>
+  <!-- Add Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary-color: #4361ee;
+      --secondary-color: #3a0ca3;
+      --accent-color: #4cc9f0;
+      --dark-bg: #1a1a2e;
+      --card-bg: #16213e;
+      --text-color: #f0f0f0;
+      --border-color: #394867;
+      --success-color: #4ade80;
+      --warning-color: #facc15;
+      --danger-color: #f87171;
+      --toolbar-height: 60px;
+      --sidebar-width: 280px;
+      --transition-speed: 0.3s;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      margin: 0; 
+      overflow: hidden; 
+      background: var(--dark-bg); 
+      color: var(--text-color);
+      touch-action: none;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    /* Header & Toolbar */
+    #header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      background: var(--card-bg);
+      height: var(--toolbar-height);
+      border-bottom: 1px solid var(--border-color);
+      flex-shrink: 0;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.4rem;
+      color: var(--accent-color);
+    }
+    
+    .logo i {
+      font-size: 1.6rem;
+    }
+    
+    #toolbar { 
+      display: flex;
+      gap: 8px;
+    }
+    
+    #toolbar button, #toolbar select, #toolbar input { 
+      padding: 10px 14px;
+      background: var(--card-bg); 
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all var(--transition-speed);
+    }
+    
+    #toolbar button:hover, #toolbar select:hover {
+      background: #2d3c63;
+      transform: translateY(-2px);
+    }
+    
+    #toolbar button.active {
+      background: var(--primary-color);
+      color: white;
+    }
+    
+    #toolbar input {
+      background: #2a3a5c;
+      width: 140px;
+    }
+    
+    .toolbar-divider {
+      width: 1px;
+      background: var(--border-color);
+      margin: 0 4px;
+      height: 24px;
+      align-self: center;
+    }
+    
+    /* Main content area */
+    #main-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    
+    /* Sidebar */
+    #sidebar {
+      width: var(--sidebar-width);
+      background: var(--card-bg);
+      border-right: 1px solid var(--border-color);
+      padding: 16px;
+      overflow-y: auto;
+      transition: transform var(--transition-speed);
+      z-index: 5;
+    }
+    
+    .sidebar-section {
+      margin-bottom: 24px;
+    }
+    
+    .sidebar-section h3 {
+      font-size: 1rem;
+      margin-bottom: 12px;
+      color: var(--accent-color);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .node-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .node-list-item {
+      padding: 10px 12px;
+      background: #2a3a5c;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background var(--transition-speed);
+    }
+    
+    .node-list-item:hover {
+      background: #324571;
+    }
+    
+    /* Stage area */
+    #stage-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    #zoom-controls {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: rgba(26, 26, 46, 0.8);
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+    
+    #zoom-controls button {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: none;
+      background: var(--card-bg);
+      color: var(--text-color);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: all var(--transition-speed);
+    }
+    
+    #zoom-controls button:hover {
+      background: var(--primary-color);
+      transform: scale(1.1);
+    }
+    
+    #zoom-display {
+      text-align: center;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    
+    #stage { 
+      position: absolute; 
+      top: 0;
+      left: 0; 
+      right: 0; 
+      bottom: 0; 
+      overflow: auto; 
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    #world { 
+      position: relative; 
+      width: 100000px; 
+      height: 100000px; 
+      transform-origin: 0 0;
+    }
+    
+    /* Nodes */
+    .node { 
+      position: absolute; 
+      min-width: 140px;
+      max-width: 280px;
+      padding: 14px 16px;
+      background: var(--card-bg); 
+      border: 2px solid var(--border-color);
+      border-radius: 12px;
+      cursor: grab; 
+      user-select: none; 
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: transform 0.1s ease, box-shadow 0.2s ease;
+      font-size: 16px;
+      touch-action: none;
+    }
+    
+    .node:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+    }
+    
+    .node.selected { 
+      border-color: var(--accent-color); 
+      box-shadow: 0 0 15px rgba(76, 201, 240, 0.4);
+    }
+    
+    .node.dragging {
+      cursor: grabbing;
+      opacity: 0.9;
+    }
+    
+    .node-content {
+      min-height: 24px;
+      word-wrap: break-word;
+    }
+    
+    .node-icons {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity var(--transition-speed);
+    }
+    
+    .node:hover .node-icons {
+      opacity: 1;
+    }
+    
+    .node-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      background: rgba(0, 0, 0, 0.3);
+      cursor: pointer;
+    }
+    
+    .node-icon:hover {
+      background: var(--primary-color);
+    }
+    
+    /* Connections */
+    svg { 
+      position: absolute; 
+      inset: 0; 
+      pointer-events: none; 
+    }
+    
+    line.connection {
+      stroke: var(--accent-color);
+      stroke-width: 2;
+    }
+    
+    line.connection.highlight {
+      stroke: var(--warning-color);
+      stroke-width: 3;
+    }
+    
+    /* Context menu */
+    .context-menu {
+      position: fixed;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      z-index: 100;
+      min-width: 180px;
+      overflow: hidden;
+    }
+    
+    .context-menu-item {
+      padding: 12px 16px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: background var(--transition-speed);
+    }
+    
+    .context-menu-item:hover {
+      background: #2d3c63;
+    }
+    
+    .color-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 12px;
+      width: 160px;
+    }
+    
+    .color-option {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid var(--border-color);
+      transition: transform var(--transition-speed);
+    }
+    
+    .color-option:hover {
+      transform: scale(1.15);
+    }
+    
+    /* Edit panel */
+    .node-edit-input {
+      position: absolute;
+      background: var(--card-bg);
+      border: 2px solid var(--accent-color);
+      border-radius: 8px;
+      padding: 12px;
+      color: var(--text-color);
+      font: inherit;
+      z-index: 20;
+      min-width: 140px;
+      resize: both;
+      overflow: auto;
+      box-shadow: 0 0 20px rgba(76, 201, 240, 0.4);
+      font-size: 16px;
+    }
+    
+    #edit-panel {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--card-bg);
+      border: 2px solid var(--accent-color);
+      border-radius: 12px;
+      padding: 24px;
+      z-index: 100;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      width: 400px;
+      max-width: 90vw;
+      display: none;
+    }
+    
+    #edit-panel h3 {
+      margin-top: 0;
+      color: var(--accent-color);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    #edit-textarea {
+      width: 100%;
+      height: 140px;
+      background: #2a3a5c;
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 12px;
+      resize: vertical;
+      margin-bottom: 20px;
+      font-family: inherit;
+      font-size: 16px;
+    }
+    
+    #edit-panel-buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+    
+    #edit-panel button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      min-width: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all var(--transition-speed);
+    }
+    
+    #edit-panel-save {
+      background: var(--primary-color);
+      color: white;
+    }
+    
+    #edit-panel-save:hover {
+      background: var(--secondary-color);
+    }
+    
+    #edit-panel-cancel {
+      background: #4a5568;
+      color: white;
+    }
+    
+    #edit-panel-cancel:hover {
+      background: #2d3748;
+    }
+    
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 90;
+      display: none;
+    }
+    
+    /* Auth UI */
+    #auth-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(26, 26, 46, 0.95);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    #auth-box {
+      background: var(--card-bg);
+      padding: 32px;
+      border-radius: 12px;
+      width: 360px;
+      max-width: 90vw;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+    
+    #auth-box h2 {
+      margin-top: 0;
+      color: var(--accent-color);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    
+    #auth-box input {
+      width: 100%;
+      padding: 14px;
+      margin: 10px 0;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: #2a3a5c;
+      color: var(--text-color);
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+    
+    #auth-box button {
+      width: 100%;
+      padding: 14px;
+      margin: 8px 0;
+      border: none;
+      border-radius: 6px;
+      background: var(--primary-color);
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: background var(--transition-speed);
+    }
+    
+    #auth-box button:hover {
+      background: var(--secondary-color);
+    }
+    
+    #auth-box p {
+      margin: 20px 0 10px;
+      color: #a0a0b8;
+    }
+    
+    #auth-message {
+      color: var(--danger-color);
+      margin: 10px 0;
+      min-height: 20px;
+      font-size: 14px;
+    }
+    
+    /* Map Manager UI */
+    #map-manager-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      display: none;
+    }
+    
+    #map-manager-box {
+      background: var(--card-bg);
+      padding: 32px;
+      border-radius: 12px;
+      width: 600px;
+      max-width: 90vw;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+    
+    #map-manager-box h2 {
+      margin-top: 0;
+      color: var(--accent-color);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    #map-list {
+      margin: 20px 0;
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: #2a3a5c;
+    }
+    
+    .map-item {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background var(--transition-speed);
+    }
+    
+    .map-item:hover {
+      background: #324571;
+    }
+    
+    .map-item.active {
+      background: var(--primary-color);
+    }
+    
+    .map-item-info {
+      flex: 1;
+    }
+    
+    .map-item-name {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .map-item-date {
+      font-size: 12px;
+      color: #a0a0b8;
+    }
+    
+    .map-item-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .map-item-actions button {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .map-item-actions .delete-btn {
+      background: var(--danger-color);
+      color: white;
+    }
+    
+    .map-item-actions .rename-btn {
+      background: var(--warning-color);
+      color: white;
+    }
+    
+    #new-map-form {
+      display: flex;
+      gap: 12px;
+      margin: 20px 0;
+    }
+    
+    #new-map-input {
+      flex: 1;
+      padding: 12px;
+      background: #2a3a5c;
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 16px;
+    }
+    
+    #create-map-btn {
+      padding: 12px 18px;
+      background: var(--success-color);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    #close-map-manager {
+      width: 100%;
+      padding: 14px;
+      background: #4a5568;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 16px;
+      font-size: 16px;
+      transition: background var(--transition-speed);
+    }
+    
+    #close-map-manager:hover {
+      background: #2d3748;
+    }
+    
+    /* Status bar */
+    #status-bar {
+      padding: 8px 16px;
+      background: var(--card-bg);
+      border-top: 1px solid var(--border-color);
+      font-size: 14px;
+      color: #a0a0b8;
+      display: flex;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    
+    /* Toast notifications */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--card-bg);
+      color: var(--text-color);
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .toast.show {
+      opacity: 1;
+    }
+    
+    .toast.success {
+      border-left: 4px solid var(--success-color);
+    }
+    
+    .toast.error {
+      border-left: 4px solid var(--danger-color);
+    }
+    
+    /* Mobile-specific styles */
+    .mobile-toolbar {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--card-bg);
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      z-index: 10;
+      gap: 8px;
+    }
+    
+    .mobile-toolbar button {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: none;
+      background: var(--primary-color);
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    
+    @media (max-width: 1024px) {
+      #sidebar {
+        position: fixed;
+        left: 0;
+        top: var(--toolbar-height);
+        bottom: 0;
+        transform: translateX(-100%);
+      }
+      
+      #sidebar.active {
+        transform: translateX(0);
+      }
+      
+      .sidebar-toggle {
+        display: flex !important;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      :root {
+        --toolbar-height: 50px;
+      }
+      
+      #header {
+        padding: 0 12px;
+      }
+      
+      .logo {
+        font-size: 1.2rem;
+      }
+      
+      #toolbar {
+        display: none;
+      }
+      
+      .mobile-toolbar {
+        display: flex;
+      }
+      
+      .node {
+        min-width: 120px;
+        padding: 12px;
+        font-size: 15px;
+      }
+      
+      #zoom-controls {
+        bottom: 90px;
+        right: 15px;
+      }
+      
+      #zoom-controls button {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+      }
+      
+      #auth-box {
+        padding: 24px;
+      }
+      
+      #map-manager-box {
+        padding: 24px;
+      }
+      
+      .map-item {
+        padding: 12px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      
+      .map-item-actions {
+        align-self: flex-end;
+      }
+      
+      #edit-panel {
+        padding: 20px;
+      }
+    }
+    
+    /* Utility classes */
+    .hidden {
+      display: none !important;
+    }
+    
+    .sidebar-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text-color);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 6px;
+    }
+    
+    .sidebar-toggle:hover {
+      background: #2d3c63;
+    }
+    
+    /* Prevent text selection on UI elements */
+    .node, #toolbar button, .context-menu-item, .mobile-toolbar button {
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+    
+    /* Long press detection style */
+    .long-press {
+      animation: pulse 0.8s infinite alternate;
+    }
+    
+    @keyframes pulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.05); }
+    }
+    
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #1e2a4a;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent-color);
+    }
+  </style>
+</head>
+<body>
+  <!-- Firebase Auth UI -->
+  <div id="auth-container">
+    <div id="auth-box">
+      <h2><i class="fas fa-brain"></i> MindMapper Pro</h2>
+      <div id="auth-message"></div>
+      <input type="email" id="email-input" placeholder="Email">
+      <input type="password" id="password-input" placeholder="Password">
+      <button id="login-btn"><i class="fas fa-sign-in-alt"></i> Login</button>
+      <button id="signup-btn"><i class="fas fa-user-plus"></i> Sign Up</button>
+      <p>Or continue as</p>
+      <button id="guest-btn"><i class="fas fa-user"></i> Guest</button>
+    </div>
+  </div>
+
+  <!-- Mind Map Manager UI -->
+  <div id="map-manager-container">
+    <div id="map-manager-box">
+      <h2><i class="fas fa-layer-group"></i> Manage Mind Maps</h2>
+      <div id="new-map-form">
+        <input type="text" id="new-map-input" placeholder="New map name">
+        <button id="create-map-btn"><i class="fas fa-plus"></i> Create</button>
+      </div>
+      <div id="map-list">
+        <!-- Map items will be added here dynamically -->
+      </div>
+      <button id="close-map-manager">Close</button>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div id="header">
+    <div class="logo">
+      <i class="fas fa-brain"></i>
+      <span>MindMapper Pro</span>
+    </div>
+    
+    <div id="toolbar">
+      <button id="addBtn" title="Add Node"><i class="fas fa-plus"></i> Add Node</button>
+      <button id="connectBtn" title="Connect Nodes"><i class="fas fa-link"></i> Connect</button>
+      <button id="editBtn" title="Edit Node"><i class="fas fa-edit"></i> Edit</button>
+      <button id="deleteBtn" title="Delete"><i class="fas fa-trash"></i> Delete</button>
+      
+      <div class="toolbar-divider"></div>
+      
+      <button id="zoomInBtn" title="Zoom In"><i class="fas fa-search-plus"></i></button>
+      <button id="zoomOutBtn" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
+      <button id="resetViewBtn" title="Reset View"><i class="fas fa-sync"></i></button>
+      
+      <div class="toolbar-divider"></div>
+      
+      <button id="colorBtn" title="Change Color"><i class="fas fa-palette"></i> Color</button>
+      <button id="exportBtn" title="Export"><i class="fas fa-download"></i> Export</button>
+      <button id="importBtn" title="Import"><i class="fas fa-upload"></i> Import</button>
+      
+      <div class="toolbar-divider"></div>
+      
+      <select id="layoutBtn" title="Layout">
+        <option value="">Layout</option>
+        <option value="horizontal">Horizontal</option>
+        <option value="vertical">Vertical</option>
+        <option value="radial">Radial</option>
+      </select>
+      
+      <input type="text" id="searchInput" placeholder="Search nodes...">
+      
+      <div class="toolbar-divider"></div>
+      
+      <button id="saveBtn" title="Save to Cloud"><i class="fas fa-cloud-upload-alt"></i> Save</button>
+      <button id="loadBtn" title="Load from Cloud"><i class="fas fa-cloud-download-alt"></i> Load</button>
+      <button id="mapsBtn" title="Manage Maps"><i class="fas fa-layer-group"></i> Maps</button>
+      <button id="logoutBtn" title="Logout" style="display:none;"><i class="fas fa-sign-out-alt"></i> Logout</button>
+    </div>
+    
+    <button class="sidebar-toggle" id="sidebarToggle">
+      <i class="fas fa-bars"></i>
+    </button>
+  </div>
+
+  <!-- Main Content -->
+  <div id="main-container">
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div class="sidebar-section">
+        <h3><i class="fas fa-list"></i> Node List</h3>
+        <div class="node-list" id="nodeList">
+          <!-- Nodes will be listed here -->
+        </div>
+      </div>
+      
+      <div class="sidebar-section">
+        <h3><i class="fas fa-project-diagram"></i> Connections</h3>
+        <div class="node-list" id="connectionList">
+          <!-- Connections will be listed here -->
+        </div>
+      </div>
+      
+      <div class="sidebar-section">
+        <h3><i class="fas fa-info-circle"></i> Map Info</h3>
+        <div id="mapInfo">
+          <p>Nodes: <span id="nodeCount">0</span></p>
+          <p>Connections: <span id="connectionCount">0</span></p>
+          <p>Last saved: <span id="lastSaved">Never</span></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage -->
+    <div id="stage-container">
+      <div id="stage">
+        <div id="world">
+          <svg id="edges" width="100000" height="100000"></svg>
+        </div>
+      </div>
+      
+      <div id="zoom-controls">
+        <button id="mobileZoomInBtn" title="Zoom In"><i class="fas fa-plus"></i></button>
+        <button id="mobileZoomOutBtn" title="Zoom Out"><i class="fas fa-minus"></i></button>
+        <div id="zoom-display">100%</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Mobile Toolbar -->
+  <div class="mobile-toolbar">
+    <button id="mobileAddBtn" title="Add Node"><i class="fas fa-plus"></i></button>
+    <button id="mobileConnectBtn" title="Connect Nodes"><i class="fas fa-link"></i></button>
+    <button id="mobileEditBtn" title="Edit Node"><i class="fas fa-edit"></i></button>
+    <button id="mobileMenuBtn" title="Menu"><i class="fas fa-ellipsis-h"></i></button>
+  </div>
+  
+  <!-- Status Bar -->
+  <div id="status-bar">
+    <div id="status-message">Ready</div>
+    <div id="current-user">Not logged in</div>
+  </div>
+
+  <!-- Edit Panel -->
+  <div id="overlay"></div>
+  <div id="edit-panel">
+    <h3><i class="fas fa-edit"></i> Edit Node Content</h3>
+    <textarea id="edit-textarea"></textarea>
+    <div id="edit-panel-buttons">
+      <button id="edit-panel-cancel"><i class="fas fa-times"></i> Cancel</button>
+      <button id="edit-panel-save"><i class="fas fa-check"></i> Save</button>
+    </div>
+  </div>
+  
+  <!-- Toast Notification -->
+  <div class="toast" id="toast">
+    <i class="fas fa-check-circle"></i>
+    <span id="toast-message"></span>
+  </div>
+  
+  <script>
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBlQI16Nmx5oo3VzyCDEb6V4M2cH9Bbwc8",
+      authDomain: "mindmapping-58435.firebaseapp.com",
+      databaseURL: "https://mindmapping-58435-default-rtdb.firebaseio.com",
+      projectId: "mindmapping-58435",
+      storageBucket: "mindmapping-58435.firebasestorage.app",
+      messagingSenderId: "1059085761579",
+      appId: "1:1059085761579:web:5422cefb56f5989af7be6e",
+      measurementId: "G-9F7EZZ2C9T"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const auth = firebase.auth();
+    
+    // Main application variables
+    const world = document.getElementById('world');
+    const edgesSVG = document.getElementById('edges');
+    let nodes = {};
+    let edges = [];
+    let idCounter = 1;
+    let connectMode = false;
+    let editMode = false;
+    let connectFrom = null;
+    let selectedNode = null;
+    let scale = 1;
+    let panning = false;
+    let startX, startY;
+    let initialPinchDistance = null;
+    let lastX = 0, lastY = 0;
+    let activeEditInput = null;
+    let longPressTimer = null;
+    let isLongPress = false;
+    let currentUser = null;
+    let currentMapId = 'default';
+    let mindMaps = {}; // Store all user's mind maps
+    
+    // New variables for fixing node dragging
+    let isDraggingNode = false;
+    let initialTouchPositions = null;
+    
+    // Initialize the application
+    function init() {
+      // Setup auth event listeners
+      setupAuthEventListeners();
+      
+      // Check if user was previously logged in
+      const savedUser = localStorage.getItem('mindmap_user');
+      if (savedUser) {
+        try {
+          currentUser = JSON.parse(savedUser);
+          document.getElementById('auth-container').style.display = 'none';
+          document.getElementById('logoutBtn').style.display = 'flex';
+          updateUserStatus();
+          initApp();
+        } catch (e) {
+          console.error('Error parsing saved user:', e);
+          localStorage.removeItem('mindmap_user');
+        }
+      } else {
+        updateUserStatus();
+      }
+    }
+    
+    // Initialize the app after authentication
+    function initApp() {
+      // Add event listeners
+      setupEventListeners();
+      
+      // Load list of mind maps
+      loadMindMapsList();
+      
+      // Try to load from Firebase
+      loadFromFirebase();
+      
+      // If no data, add initial node
+      if (Object.keys(nodes).length === 0) {
+        addNode(500, 500, 'Main Topic');
+      }
+      
+      // Update zoom display
+      updateZoomDisplay();
+      
+      // Update node list
+      updateNodeList();
+      
+      // Update map info
+      updateMapInfo();
+      
+      // Show status message
+      showStatus('Application loaded successfully');
+    }
+    
+    // Set up authentication event listeners
+    function setupAuthEventListeners() {
+      document.getElementById('login-btn').onclick = handleLogin;
+      document.getElementById('signup-btn').onclick = handleSignup;
+      document.getElementById('guest-btn').onclick = handleGuest;
+      document.getElementById('logoutBtn').onclick = handleLogout;
+      
+      // Allow submitting with Enter key
+      document.getElementById('email-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleLogin();
+      });
+      document.getElementById('password-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleLogin();
+      });
+    }
+    
+    // Handle user login
+    function handleLogin() {
+      const email = document.getElementById('email-input').value;
+      const password = document.getElementById('password-input').value;
+      
+      if (!email || !password) {
+        showAuthMessage('Please enter both email and password');
+        return;
+      }
+      
+      auth.signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          // Successfully logged in
+          currentUser = {
+            uid: userCredential.user.uid,
+            email: userCredential.user.email
+          };
+          
+          // Save user info to localStorage
+          localStorage.setItem('mindmap_user', JSON.stringify(currentUser));
+          
+          // Hide auth UI
+          document.getElementById('auth-container').style.display = 'none';
+          document.getElementById('logoutBtn').style.display = 'flex';
+          
+          // Update user status
+          updateUserStatus();
+          
+          // Initialize the app
+          initApp();
+          
+          showToast('Login successful!', 'success');
+        })
+        .catch((error) => {
+          showAuthMessage(error.message);
+        });
+    }
+    
+    // Handle user signup
+    function handleSignup() {
+      const email = document.getElementById('email-input').value;
+      const password = document.getElementById('password-input').value;
+      
+      if (!email || !password) {
+        showAuthMessage('Please enter both email and password');
+        return;
+      }
+      
+      if (password.length < 6) {
+        showAuthMessage('Password should be at least 6 characters');
+        return;
+      }
+      
+      auth.createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          // Successfully signed up
+          currentUser = {
+            uid: userCredential.user.uid,
+            email: userCredential.user.email
+          };
+          
+          // Save user info to localStorage
+          localStorage.setItem('mindmap_user', JSON.stringify(currentUser));
+          
+          // Hide auth UI
+          document.getElementById('auth-container').style.display = 'none';
+          document.getElementById('logoutBtn').style.display = 'flex';
+          
+          // Update user status
+          updateUserStatus();
+          
+          // Initialize the app
+          initApp();
+          
+          showToast('Account created successfully!', 'success');
+        })
+        .catch((error) => {
+          showAuthMessage(error.message);
+        });
+    }
+    
+    // Handle guest access
+    function handleGuest() {
+      currentUser = {
+        uid: 'guest',
+        email: 'guest@example.com'
+      };
+      
+      // Hide auth UI
+      document.getElementById('auth-container').style.display = 'none';
+      
+      // Update user status
+      updateUserStatus();
+      
+      // Initialize the app
+      initApp();
+      
+      showToast('Continuing as guest', 'success');
+    }
+    
+    // Handle logout
+    function handleLogout() {
+      auth.signOut().then(() => {
+        currentUser = null;
+        localStorage.removeItem('mindmap_user');
+        document.getElementById('auth-container').style.display = 'flex';
+        document.getElementById('logoutBtn').style.display = 'none';
+        updateUserStatus();
+        showToast('Logged out successfully', 'success');
+      }).catch((error) => {
+        console.error('Logout error:', error);
+      });
+    }
+    
+    // Update user status in the UI
+    function updateUserStatus() {
+      const userElement = document.getElementById('current-user');
+      if (currentUser && currentUser.uid !== 'guest') {
+        userElement.textContent = `Logged in as: ${currentUser.email}`;
+      } else if (currentUser && currentUser.uid === 'guest') {
+        userElement.textContent = 'Using as guest';
+      } else {
+        userElement.textContent = 'Not logged in';
+      }
+    }
+    
+    // Show authentication message
+    function showAuthMessage(message) {
+      const authMessage = document.getElementById('auth-message');
+      authMessage.textContent = message;
+      
+      // Clear message after 3 seconds
+      setTimeout(() => {
+        authMessage.textContent = '';
+      }, 3000);
+    }
+    
+    // Set up all event listeners
+    function setupEventListeners() {
+      // Toolbar buttons
+      document.getElementById('addBtn').onclick = () => handleAddNode();
+      document.getElementById('connectBtn').onclick = () => toggleConnectMode();
+      document.getElementById('editBtn').onclick = () => handleEditNode();
+      document.getElementById('deleteBtn').onclick = () => handleDelete();
+      document.getElementById('zoomInBtn').onclick = () => zoomIn();
+      document.getElementById('zoomOutBtn').onclick = () => zoomOut();
+      document.getElementById('resetViewBtn').onclick = () => resetView();
+      document.getElementById('colorBtn').onclick = () => handleColorChange();
+      document.getElementById('exportBtn').onclick = () => exportData();
+      document.getElementById('importBtn').onclick = () => document.getElementById('importInput').click();
+      document.getElementById('saveBtn').onclick = () => saveToFirebase();
+      document.getElementById('loadBtn').onclick = () => loadFromFirebase();
+      document.getElementById('mapsBtn').onclick = () => showMapManager();
+      document.getElementById('sidebarToggle').onclick = () => toggleSidebar();
+      
+      // Mobile toolbar buttons
+      document.getElementById('mobileAddBtn').onclick = () => handleAddNode();
+      document.getElementById('mobileConnectBtn').onclick = () => toggleConnectMode();
+      document.getElementById('mobileEditBtn').onclick = () => handleEditNode();
+      document.getElementById('mobileMenuBtn').onclick = () => showMobileMenu();
+      document.getElementById('mobileZoomInBtn').onclick = () => zoomIn();
+      document.getElementById('mobileZoomOutBtn').onclick = () => zoomOut();
+      
+      // Zoom controls
+      document.getElementById('stage').addEventListener('wheel', handleWheel, { passive: false });
+      
+      // Panning
+      document.getElementById('stage').addEventListener('mousedown', startPan);
+      document.getElementById('stage').addEventListener('touchstart', handleTouchStart, { passive: false });
+      
+      // Import input
+      document.getElementById('importInput')?.remove();
+      const importInput = document.createElement('input');
+      importInput.type = 'file';
+      importInput.id = 'importInput';
+      importInput.accept = '.json';
+      importInput.style.display = 'none';
+      document.body.appendChild(importInput);
+      importInput.onchange = (e) => importData(e);
+      
+      // Edit panel
+      document.getElementById('edit-panel-cancel').onclick = () => closeEditPanel();
+      document.getElementById('edit-panel-save').onclick = () => saveEditPanel();
+      document.getElementById('overlay').onclick = () => closeEditPanel();
+      
+      // Map manager
+      document.getElementById('create-map-btn').onclick = () => createNewMap();
+      document.getElementById('close-map-manager').onclick = () => closeMapManager();
+      
+      // Search
+      document.getElementById('searchInput').addEventListener('input', (e) => searchNodes(e.target.value));
+      
+      // Layout
+      document.getElementById('layoutBtn').addEventListener('change', (e) => applyLayout(e.target.value));
+      
+      // Context menu
+      document.addEventListener('contextmenu', handleContextMenu);
+      document.addEventListener('click', () => closeContextMenu());
+      
+      // Keyboard shortcuts
+      document.addEventListener('keydown', handleKeyDown);
+      
+      // Window resize
+      window.addEventListener('resize', handleResize);
+    }
+    
+    // Add a new node
+    function addNode(x, y, text = 'New Node') {
+      const id = `node-${idCounter++}`;
+      const node = document.createElement('div');
+      node.className = 'node';
+      node.id = id;
+      node.innerHTML = `
+        <div class="node-content">${text}</div>
+        <div class="node-icons">
+          <div class="node-icon" onclick="event.stopPropagation(); handleEditNode('${id}')"><i class="fas fa-edit"></i></div>
+          <div class="node-icon" onclick="event.stopPropagation(); handleDelete('${id}')"><i class="fas fa-trash"></i></div>
+        </div>
+      `;
+      node.style.left = `${x}px`;
+      node.style.top = `${y}px`;
+      
+      // Add drag functionality
+      makeNodeDraggable(node);
+      
+      world.appendChild(node);
+      
+      // Add to nodes object
+      nodes[id] = {
+        id: id,
+        x: x,
+        y: y,
+        text: text,
+        color: '#16213e',
+        element: node
+      };
+      
+      // Update node list
+      updateNodeList();
+      
+      // Update map info
+      updateMapInfo();
+      
+      return id;
+    }
+    
+    // Make a node draggable
+    function makeNodeDraggable(node) {
+      let isDragging = false;
+      let offsetX, offsetY;
+      
+      // Mouse events
+      node.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return; // Only left click
+        if (connectMode) {
+          handleConnect(node.id);
+          return;
+        }
+        
+        isDragging = true;
+        offsetX = e.clientX - node.getBoundingClientRect().left;
+        offsetY = e.clientY - node.getBoundingClientRect().top;
+        node.classList.add('dragging');
+        selectNode(node.id);
+        
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        
+        const worldRect = world.getBoundingClientRect();
+        const x = (e.clientX - worldRect.left) / scale - offsetX;
+        const y = (e.clientY - worldRect.top) / scale - offsetY;
+        
+        node.style.left = `${x}px`;
+        node.style.top = `${y}px`;
+        
+        // Update node position in data
+        nodes[node.id].x = x;
+        nodes[node.id].y = y;
+        
+        // Update connections
+        updateConnections();
+      });
+      
+      document.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          node.classList.remove('dragging');
+        }
+      });
+      
+      // Touch events for mobile
+      node.addEventListener('touchstart', (e) => {
+        if (connectMode) {
+          handleConnect(node.id);
+          e.preventDefault();
+          return;
+        }
+        
+        isDragging = true;
+        isDraggingNode = true;
+        const touch = e.touches[0];
+        const rect = node.getBoundingClientRect();
+        offsetX = touch.clientX - rect.left;
+        offsetY = touch.clientY - rect.top;
+        node.classList.add('dragging');
+        selectNode(node.id);
+        
+        // Prevent default to avoid scrolling
+        e.preventDefault();
+        e.stopPropagation();
+      }, { passive: false });
+      
+      document.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        
+        const touch = e.touches[0];
+        const worldRect = world.getBoundingClientRect();
+        const x = (touch.clientX - worldRect.left) / scale - offsetX;
+        const y = (touch.clientY - worldRect.top) / scale - offsetY;
+        
+        node.style.left = `${x}px`;
+        node.style.top = `${y}px`;
+        
+        // Update node position in data
+        nodes[node.id].x = x;
+        nodes[node.id].y = y;
+        
+        // Update connections
+        updateConnections();
+        
+        e.preventDefault();
+      }, { passive: false });
+      
+      document.addEventListener('touchend', () => {
+        if (isDragging) {
+          isDragging = false;
+          isDraggingNode = false;
+          node.classList.remove('dragging');
+        }
+      });
+      
+      // Click to select
+      node.addEventListener('click', (e) => {
+        if (isDragging) return;
+        selectNode(node.id);
+        e.stopPropagation();
+      });
+    }
+    
+    // Select a node
+    function selectNode(id) {
+      // Deselect previously selected node
+      if (selectedNode) {
+        nodes[selectedNode].element.classList.remove('selected');
+      }
+      
+      // Select new node
+      selectedNode = id;
+      nodes[id].element.classList.add('selected');
+      
+      // Update status
+      showStatus(`Selected node: ${nodes[id].text}`);
+    }
+    
+    // Toggle connect mode
+    function toggleConnectMode() {
+      connectMode = !connectMode;
+      document.getElementById('connectBtn').classList.toggle('active', connectMode);
+      document.getElementById('mobileConnectBtn').classList.toggle('active', connectMode);
+      
+      if (connectMode) {
+        showStatus('Connect mode: Click on a node to start connection');
+      } else {
+        showStatus('Connect mode deactivated');
+        connectFrom = null;
+      }
+    }
+    
+    // Handle node connection
+    function handleConnect(id) {
+      if (!connectFrom) {
+        connectFrom = id;
+        nodes[id].element.classList.add('selected');
+        showStatus(`Connecting from: ${nodes[id].text}. Click on another node to connect.`);
+      } else {
+        if (connectFrom === id) {
+          showStatus('Cannot connect a node to itself');
+          return;
+        }
+        
+        // Check if connection already exists
+        const connectionExists = edges.some(edge => 
+          (edge.from === connectFrom && edge.to === id) || 
+          (edge.from === id && edge.to === connectFrom)
+        );
+        
+        if (connectionExists) {
+          showStatus('These nodes are already connected');
+        } else {
+          // Add connection
+          edges.push({ from: connectFrom, to: id });
+          updateConnections();
+          showStatus(`Connected: ${nodes[connectFrom].text} → ${nodes[id].text}`);
+        }
+        
+        // Reset connection mode
+        nodes[connectFrom].element.classList.remove('selected');
+        connectFrom = null;
+        connectMode = false;
+        document.getElementById('connectBtn').classList.remove('active');
+        document.getElementById('mobileConnectBtn').classList.remove('active');
+      }
+    }
+    
+    // Update all connections visually
+    function updateConnections() {
+      // Clear existing connections
+      edgesSVG.innerHTML = '';
+      
+      // Draw new connections
+      edges.forEach(edge => {
+        const fromNode = nodes[edge.from];
+        const toNode = nodes[edge.to];
+        
+        if (!fromNode || !toNode) return;
+        
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('class', 'connection');
+        line.setAttribute('x1', fromNode.x + fromNode.element.offsetWidth / 2);
+        line.setAttribute('y1', fromNode.y + fromNode.element.offsetHeight / 2);
+        line.setAttribute('x2', toNode.x + toNode.element.offsetWidth / 2);
+        line.setAttribute('y2', toNode.y + toNode.element.offsetHeight / 2);
+        line.setAttribute('data-from', edge.from);
+        line.setAttribute('data-to', edge.to);
+        
+        // Highlight connection if either node is selected
+        if (selectedNode === edge.from || selectedNode === edge.to) {
+          line.classList.add('highlight');
+        }
+        
+        edgesSVG.appendChild(line);
+      });
+      
+      // Update connection list
+      updateConnectionList();
+      
+      // Update map info
+      updateMapInfo();
+    }
+    
+    // Handle node editing
+    function handleEditNode(id = null) {
+      const nodeId = id || selectedNode;
+      if (!nodeId || !nodes[nodeId]) {
+        showStatus('Please select a node to edit');
+        return;
+      }
+      
+      openEditPanel(nodeId);
+    }
+    
+    // Open the edit panel
+    function openEditPanel(nodeId) {
+      const node = nodes[nodeId];
+      document.getElementById('edit-textarea').value = node.text;
+      document.getElementById('edit-panel').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+      
+      // Store the node id in the panel for saving
+      document.getElementById('edit-panel').dataset.nodeId = nodeId;
+    }
+    
+    // Close the edit panel
+    function closeEditPanel() {
+      document.getElementById('edit-panel').style.display = 'none';
+      document.getElementById('overlay').style.display = 'none';
+    }
+    
+    // Save changes from the edit panel
+    function saveEditPanel() {
+      const nodeId = document.getElementById('edit-panel').dataset.nodeId;
+      const newText = document.getElementById('edit-textarea').value.trim();
+      
+      if (newText && nodeId && nodes[nodeId]) {
+        nodes[nodeId].text = newText;
+        nodes[nodeId].element.querySelector('.node-content').textContent = newText;
+        updateNodeList();
+        showStatus('Node updated');
+      }
+      
+      closeEditPanel();
+    }
+    
+    // Handle deletion
+    function handleDelete(id = null) {
+      const nodeId = id || selectedNode;
+      if (!nodeId || !nodes[nodeId]) {
+        showStatus('Please select a node to delete');
+        return;
+      }
+      
+      if (!confirm(`Delete node "${nodes[nodeId].text}"? This will also remove all its connections.`)) {
+        return;
+      }
+      
+      // Remove node
+      nodes[nodeId].element.remove();
+      delete nodes[nodeId];
+      
+      // Remove connections involving this node
+      edges = edges.filter(edge => edge.from !== nodeId && edge.to !== nodeId);
+      updateConnections();
+      
+      // Clear selection if deleted node was selected
+      if (selectedNode === nodeId) {
+        selectedNode = null;
+      }
+      
+      // Update UI
+      updateNodeList();
+      updateMapInfo();
+      showStatus('Node deleted');
+    }
+    
+    // Handle color change
+    function handleColorChange() {
+      if (!selectedNode) {
+        showStatus('Please select a node to change color');
+        return;
+      }
+      
+      // Create color picker context menu
+      const node = nodes[selectedNode].element;
+      const rect = node.getBoundingClientRect();
+      
+      // Remove any existing color picker
+      document.querySelector('.color-picker-container')?.remove();
+      
+      const colorPicker = document.createElement('div');
+      colorPicker.className = 'context-menu color-picker-container';
+      colorPicker.style.position = 'fixed';
+      colorPicker.style.left = `${rect.right + 10}px`;
+      colorPicker.style.top = `${rect.top}px`;
+      
+      const colors = [
+        '#16213e', '#1a1a2e', '#0f3460', '#1f4068', 
+        '#e94560', '#f05945', '#f0a500', '#00b4d8',
+        '#4cc9f0', '#4361ee', '#3a0ca3', '#7209b7'
+      ];
+      
+      let colorHTML = '<div class="color-picker">';
+      colors.forEach(color => {
+        colorHTML += `<div class="color-option" style="background: ${color}" data-color="${color}"></div>`;
+      });
+      colorHTML += '</div>';
+      
+      colorPicker.innerHTML = colorHTML;
+      document.body.appendChild(colorPicker);
+      
+      // Add event listeners to color options
+      colorPicker.querySelectorAll('.color-option').forEach(option => {
+        option.addEventListener('click', (e) => {
+          const color = e.target.getAttribute('data-color');
+          node.style.background = color;
+          nodes[selectedNode].color = color;
+          colorPicker.remove();
+          showStatus('Node color updated');
+        });
+      });
+      
+      // Close color picker when clicking elsewhere
+      setTimeout(() => {
+        document.addEventListener('click', function closeColorPicker(e) {
+          if (!colorPicker.contains(e.target)) {
+            colorPicker.remove();
+            document.removeEventListener('click', closeColorPicker);
+          }
+        });
+      }, 100);
+    }
+    
+    // Handle zoom with mouse wheel
+    function handleWheel(e) {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        if (e.deltaY < 0) {
+          zoomIn();
+        } else {
+          zoomOut();
+        }
+      }
+    }
+    
+    // Zoom in
+    function zoomIn() {
+      scale = Math.min(scale + 0.1, 3);
+      updateZoom();
+    }
+    
+    // Zoom out
+    function zoomOut() {
+      scale = Math.max(scale - 0.1, 0.5);
+      updateZoom();
+    }
+    
+    // Reset view
+    function resetView() {
+      scale = 1;
+      world.style.transform = `scale(${scale})`;
+      world.style.left = '0px';
+      world.style.top = '0px';
+      updateZoomDisplay();
+      showStatus('View reset');
+    }
+    
+    // Update zoom transformation
+    function updateZoom() {
+      world.style.transform = `scale(${scale})`;
+      updateZoomDisplay();
+      updateConnections();
+    }
+    
+    // Update zoom display
+    function updateZoomDisplay() {
+      document.getElementById('zoom-display').textContent = `${Math.round(scale * 100)}%`;
+    }
+    
+    // Start panning
+    function startPan(e) {
+      if (e.button !== 0) return; // Only left click
+      panning = true;
+      startX = e.clientX - lastX;
+      startY = e.clientY - lastY;
+      document.getElementById('stage').style.cursor = 'grabbing';
+      
+      e.preventDefault();
+    }
+    
+    // Handle touch start for panning and pinch-to-zoom
+    function handleTouchStart(e) {
+      if (e.touches.length === 2) {
+        // Pinch to zoom
+        initialPinchDistance = getDistance(e.touches[0], e.touches[1]);
+        e.preventDefault();
+      } else if (e.touches.length === 1 && !isDraggingNode) {
+        // Pan with one finger (only if not dragging a node)
+        panning = true;
+        startX = e.touches[0].clientX - lastX;
+        startY = e.touches[0].clientY - lastY;
+        document.getElementById('stage').style.cursor = 'grabbing';
+        e.preventDefault();
+      }
+      
+      // Add touch move and end listeners
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleTouchEnd);
+    }
+    
+    // Handle touch move
+    function handleTouchMove(e) {
+      if (panning && e.touches.length === 1) {
+        // Panning
+        lastX = e.touches[0].clientX - startX;
+        lastY = e.touches[0].clientY - startY;
+        world.style.left = `${lastX}px`;
+        world.style.top = `${lastY}px`;
+        e.preventDefault();
+      } else if (e.touches.length === 2) {
+        // Pinch to zoom
+        const currentDistance = getDistance(e.touches[0], e.touches[1]);
+        const zoomFactor = currentDistance / initialPinchDistance;
+        
+        // Apply zoom with some limits
+        const newScale = Math.max(0.5, Math.min(3, scale * zoomFactor));
+        
+        if (newScale !== scale) {
+          scale = newScale;
+          updateZoom();
+        }
+        
+        initialPinchDistance = currentDistance;
+        e.preventDefault();
+      }
+    }
+    
+    // Handle touch end
+    function handleTouchEnd() {
+      panning = false;
+      document.getElementById('stage').style.cursor = 'grab';
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    }
+    
+    // Calculate distance between two touch points
+    function getDistance(touch1, touch2) {
+      const dx = touch1.clientX - touch2.clientX;
+      const dy = touch1.clientY - touch2.clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+    
+    // Update node list in sidebar
+    function updateNodeList() {
+      const nodeList = document.getElementById('nodeList');
+      nodeList.innerHTML = '';
+      
+      Object.values(nodes).forEach(node => {
+        const item = document.createElement('div');
+        item.className = 'node-list-item';
+        item.textContent = node.text;
+        item.addEventListener('click', () => {
+          // Center view on node
+          const stageRect = document.getElementById('stage').getBoundingClientRect();
+          const worldRect = world.getBoundingClientRect();
+          const nodeRect = node.element.getBoundingClientRect();
+          
+          const centerX = (stageRect.width / 2 - (nodeRect.left - worldRect.left + nodeRect.width / 2)) / scale;
+          const centerY = (stageRect.height / 2 - (nodeRect.top - worldRect.top + nodeRect.height / 2)) / scale;
+          
+          world.style.left = `${centerX}px`;
+          world.style.top = `${centerY}px`;
+          lastX = centerX;
+          lastY = centerY;
+          
+          // Select the node
+          selectNode(node.id);
+        });
+        
+        nodeList.appendChild(item);
+      });
+    }
+    
+    // Update connection list in sidebar
+    function updateConnectionList() {
+      const connectionList = document.getElementById('connectionList');
+      connectionList.innerHTML = '';
+      
+      if (edges.length === 0) {
+        const message = document.createElement('div');
+        message.textContent = 'No connections yet';
+        message.style.padding = '8px';
+        message.style.color = '#a0a0b8';
+        connectionList.appendChild(message);
+        return;
+      }
+      
+      edges.forEach(edge => {
+        const fromNode = nodes[edge.from];
+        const toNode = nodes[edge.to];
+        
+        if (!fromNode || !toNode) return;
+        
+        const item = document.createElement('div');
+        item.className = 'node-list-item';
+        item.innerHTML = `
+          <div>${fromNode.text} → ${toNode.text}</div>
+          <div style="font-size: 12px; color: #a0a0b8;">Click to select</div>
+        `;
+        
+        item.addEventListener('click', () => {
+          // Select both nodes
+          selectNode(fromNode.id);
+          
+          // Center view on the midpoint between nodes
+          const midX = (fromNode.x + toNode.x) / 2;
+          const midY = (fromNode.y + toNode.y) / 2;
+          
+          const stageRect = document.getElementById('stage').getBoundingClientRect();
+          const worldRect = world.getBoundingClientRect();
+          
+          const centerX = (stageRect.width / 2 - (midX * scale)) / scale;
+          const centerY = (stageRect.height / 2 - (midY * scale)) / scale;
+          
+          world.style.left = `${centerX}px`;
+          world.style.top = `${centerY}px`;
+          lastX = centerX;
+          lastY = centerY;
+        });
+        
+        connectionList.appendChild(item);
+      });
+    }
+    
+    // Update map information
+    function updateMapInfo() {
+      document.getElementById('nodeCount').textContent = Object.keys(nodes).length;
+      document.getElementById('connectionCount').textContent = edges.length;
+    }
+    
+    // Export data as JSON
+    function exportData() {
+      const data = {
+        nodes: Object.values(nodes).map(node => ({
+          id: node.id,
+          x: node.x,
+          y: node.y,
+          text: node.text,
+          color: node.color
+        })),
+        edges: edges,
+        idCounter: idCounter
+      };
+      
+      const dataStr = JSON.stringify(data, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      
+      const exportFileDefaultName = 'mindmap.json';
+      
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+      
+      showStatus('Map exported successfully');
+    }
+    
+    // Import data from JSON file
+    function importData(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          loadData(data);
+          showStatus('Map imported successfully');
+        } catch (error) {
+          alert('Error importing file: ' + error.message);
+        }
+      };
+      reader.readAsText(file);
+      
+      // Reset the input
+      e.target.value = '';
+    }
+    
+    // Load data into the application
+    function loadData(data) {
+      // Clear existing nodes and edges
+      Object.values(nodes).forEach(node => node.element.remove());
+      nodes = {};
+      edges = [];
+      edgesSVG.innerHTML = '';
+      
+      // Set id counter
+      if (data.idCounter) {
+        idCounter = data.idCounter;
+      }
+      
+      // Create nodes
+      data.nodes.forEach(nodeData => {
+        const node = document.createElement('div');
+        node.className = 'node';
+        node.id = nodeData.id;
+        node.innerHTML = `
+          <div class="node-content">${nodeData.text}</div>
+          <div class="node-icons">
+            <div class="node-icon" onclick="event.stopPropagation(); handleEditNode('${nodeData.id}')"><i class="fas fa-edit"></i></div>
+            <div class="node-icon" onclick="event.stopPropagation(); handleDelete('${nodeData.id}')"><i class="fas fa-trash"></i></div>
+          </div>
+        `;
+        node.style.left = `${nodeData.x}px`;
+        node.style.top = `${nodeData.y}px`;
+        node.style.background = nodeData.color;
+        
+        world.appendChild(node);
+        
+        nodes[nodeData.id] = {
+          id: nodeData.id,
+          x: nodeData.x,
+          y: nodeData.y,
+          text: nodeData.text,
+          color: nodeData.color,
+          element: node
+        };
+        
+        makeNodeDraggable(node);
+      });
+      
+      // Add edges
+      edges = data.edges || [];
+      updateConnections();
+      
+      // Update UI
+      updateNodeList();
+      updateMapInfo();
+      
+      // Reset view
+      resetView();
+    }
+    
+    // Save data to Firebase
+    function saveToFirebase() {
+      if (currentUser?.uid === 'guest') {
+        showToast('Please sign in to save to cloud', 'error');
+        return;
+      }
+      
+      if (!currentUser) {
+        showToast('Please sign in to save', 'error');
+        return;
+      }
+      
+      const data = {
+        nodes: Object.values(nodes).map(node => ({
+          id: node.id,
+          x: node.x,
+          y: node.y,
+          text: node.text,
+          color: node.color
+        })),
+        edges: edges,
+        idCounter: idCounter,
+        updatedAt: new Date().toISOString()
+      };
+      
+      const userMapsRef = database.ref(`users/${currentUser.uid}/maps/${currentMapId}`);
+      userMapsRef.set(data)
+        .then(() => {
+          showToast('Map saved to cloud successfully', 'success');
+          document.getElementById('lastSaved').textContent = new Date().toLocaleString();
+          
+          // Refresh map list
+          loadMindMapsList();
+        })
+        .catch((error) => {
+          showToast('Error saving to cloud: ' + error.message, 'error');
+        });
+    }
+    
+    // Load data from Firebase
+    function loadFromFirebase() {
+      if (currentUser?.uid === 'guest') {
+        showToast('Please sign in to load from cloud', 'error');
+        return;
+      }
+      
+      if (!currentUser) {
+        showToast('Please sign in to load', 'error');
+        return;
+      }
+      
+      const userMapsRef = database.ref(`users/${currentUser.uid}/maps/${currentMapId}`);
+      userMapsRef.once('value')
+        .then((snapshot) => {
+          const data = snapshot.val();
+          if (data) {
+            loadData(data);
+            if (data.updatedAt) {
+              document.getElementById('lastSaved').textContent = new Date(data.updatedAt).toLocaleString();
+            }
+            showToast('Map loaded from cloud successfully', 'success');
+          } else {
+            showToast('No saved map found', 'error');
+          }
+        })
+        .catch((error) => {
+          showToast('Error loading from cloud: ' + error.message, 'error');
+        });
+    }
+    
+    // Load list of mind maps
+    function loadMindMapsList() {
+      if (currentUser?.uid === 'guest' || !currentUser) {
+        return;
+      }
+      
+      const userMapsRef = database.ref(`users/${currentUser.uid}/maps`);
+      userMapsRef.once('value')
+        .then((snapshot) => {
+          const maps = snapshot.val() || {};
+          mindMaps = maps;
+          
+          const mapList = document.getElementById('map-list');
+          mapList.innerHTML = '';
+          
+          Object.entries(maps).forEach(([mapId, mapData]) => {
+            const mapItem = document.createElement('div');
+            mapItem.className = 'map-item';
+            if (mapId === currentMapId) {
+              mapItem.classList.add('active');
+            }
+            
+            const updatedAt = mapData.updatedAt ? new Date(mapData.updatedAt).toLocaleString() : 'Unknown';
+            const nodeCount = mapData.nodes ? Object.keys(mapData.nodes).length : 0;
+            
+            mapItem.innerHTML = `
+              <div class="map-item-info">
+                <div class="map-item-name">${mapId}</div>
+                <div class="map-item-date">${nodeCount} nodes, Updated: ${updatedAt}</div>
+              </div>
+              <div class="map-item-actions">
+                <button class="rename-btn" data-map="${mapId}"><i class="fas fa-edit"></i></button>
+                <button class="delete-btn" data-map="${mapId}"><i class="fas fa-trash"></i></button>
+              </div>
+            `;
+            
+            mapItem.addEventListener('click', (e) => {
+              if (!e.target.closest('.map-item-actions')) {
+                switchToMap(mapId);
+                closeMapManager();
+              }
+            });
+            
+            // Add delete button handler
+            const deleteBtn = mapItem.querySelector('.delete-btn');
+            deleteBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              deleteMap(mapId);
+            });
+            
+            // Add rename button handler
+            const renameBtn = mapItem.querySelector('.rename-btn');
+            renameBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              renameMap(mapId);
+            });
+            
+            mapList.appendChild(mapItem);
+          });
+        })
+        .catch((error) => {
+          console.error('Error loading maps list:', error);
+        });
+    }
+    
+    // Switch to a different map
+    function switchToMap(mapId) {
+      currentMapId = mapId;
+      loadFromFirebase();
+      closeMapManager();
+    }
+    
+    // Delete a map
+    function deleteMap(mapId) {
+      if (!confirm(`Are you sure you want to delete the map "${mapId}"? This action cannot be undone.`)) {
+        return;
+      }
+      
+      if (currentUser?.uid === 'guest' || !currentUser) {
+        return;
+      }
+      
+      const userMapRef = database.ref(`users/${currentUser.uid}/maps/${mapId}`);
+      userMapRef.remove()
+        .then(() => {
+          showToast('Map deleted successfully', 'success');
+          loadMindMapsList();
+          
+          // If we deleted the current map, switch to default
+          if (mapId === currentMapId) {
+            currentMapId = 'default';
+            loadFromFirebase();
+          }
+        })
+        .catch((error) => {
+          showToast('Error deleting map: ' + error.message, 'error');
+        });
+    }
+    
+    // Rename a map
+    function renameMap(mapId) {
+      const newName = prompt('Enter new name for the map:', mapId);
+      if (!newName || newName.trim() === '' || newName === mapId) {
+        return;
+      }
+      
+      if (currentUser?.uid === 'guest' || !currentUser) {
+        return;
+      }
+      
+      // Check if new name already exists
+      if (mindMaps[newName]) {
+        alert('A map with this name already exists. Please choose a different name.');
+        return;
+      }
+      
+      const userMapRef = database.ref(`users/${currentUser.uid}/maps/${mapId}`);
+      const newMapRef = database.ref(`users/${currentUser.uid}/maps/${newName}`);
+      
+      // Get the current map data
+      userMapRef.once('value')
+        .then((snapshot) => {
+          const mapData = snapshot.val();
+          
+          // Write to new location
+          return newMapRef.set(mapData)
+            .then(() => userMapRef.remove()); // Remove old location
+        })
+        .then(() => {
+          showToast('Map renamed successfully', 'success');
+          loadMindMapsList();
+          
+          // If we renamed the current map, update currentMapId
+          if (mapId === currentMapId) {
+            currentMapId = newName;
+          }
+        })
+        .catch((error) => {
+          showToast('Error renaming map: ' + error.message, 'error');
+        });
+    }
+    
+    // Create a new map
+    function createNewMap() {
+      const mapNameInput = document.getElementById('new-map-input');
+      const mapName = mapNameInput.value.trim();
+      
+      if (!mapName) {
+        alert('Please enter a map name');
+        return;
+      }
+      
+      if (mindMaps[mapName]) {
+        alert('A map with this name already exists. Please choose a different name.');
+        return;
+      }
+      
+      // Create empty map structure
+      const newMapData = {
+        nodes: [],
+        edges: [],
+        idCounter: 1,
+        updatedAt: new Date().toISOString()
+      };
+      
+      const userMapRef = database.ref(`users/${currentUser.uid}/maps/${mapName}`);
+      userMapRef.set(newMapData)
+        .then(() => {
+          showToast('New map created successfully', 'success');
+          mapNameInput.value = '';
+          loadMindMapsList();
+        })
+        .catch((error) => {
+          showToast('Error creating map: ' + error.message, 'error');
+        });
+    }
+    
+    // Show map manager
+    function showMapManager() {
+      if (currentUser?.uid === 'guest') {
+        showToast('Please sign in to manage maps', 'error');
+        return;
+      }
+      
+      if (!currentUser) {
+        showToast('Please sign in to manage maps', 'error');
+        return;
+      }
+      
+      document.getElementById('map-manager-container').style.display = 'flex';
+    }
+    
+    // Close map manager
+    function closeMapManager() {
+      document.getElementById('map-manager-container').style.display = 'none';
+    }
+    
+    // Toggle sidebar visibility
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('active');
+    }
+    
+    // Show mobile menu
+    function showMobileMenu() {
+      const menu = document.createElement('div');
+      menu.className = 'context-menu';
+      menu.style.position = 'fixed';
+      menu.style.bottom = '80px';
+      menu.style.left = '50%';
+      menu.style.transform = 'translateX(-50%)';
+      
+      menu.innerHTML = `
+        <div class="context-menu-item" data-action="save"><i class="fas fa-cloud-upload-alt"></i> Save</div>
+        <div class="context-menu-item" data-action="load"><i class="fas fa-cloud-download-alt"></i> Load</div>
+        <div class="context-menu-item" data-action="export"><i class="fas fa-download"></i> Export</div>
+        <div class="context-menu-item" data-action="import"><i class="fas fa-upload"></i> Import</div>
+        <div class="context-menu-item" data-action="color"><i class="fas fa-palette"></i> Color</div>
+        <div class="context-menu-item" data-action="reset"><i class="fas fa-sync"></i> Reset View</div>
+        <div class="context-menu-item" data-action="maps"><i class="fas fa-layer-group"></i> Maps</div>
+      `;
+      
+      document.body.appendChild(menu);
+      
+      // Add event listeners
+      menu.querySelectorAll('.context-menu-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          const action = e.currentTarget.getAttribute('data-action');
+          handleMobileMenuAction(action);
+          menu.remove();
+        });
+      });
+      
+      // Close menu when clicking elsewhere
+      setTimeout(() => {
+        document.addEventListener('click', function closeMenu(e) {
+          if (!menu.contains(e.target) && e.target.id !== 'mobileMenuBtn') {
+            menu.remove();
+            document.removeEventListener('click', closeMenu);
+          }
+        });
+      }, 100);
+    }
+    
+    // Handle mobile menu actions
+    function handleMobileMenuAction(action) {
+      switch (action) {
+        case 'save':
+          saveToFirebase();
+          break;
+        case 'load':
+          loadFromFirebase();
+          break;
+        case 'export':
+          exportData();
+          break;
+        case 'import':
+          document.getElementById('importInput').click();
+          break;
+        case 'color':
+          handleColorChange();
+          break;
+        case 'reset':
+          resetView();
+          break;
+        case 'maps':
+          showMapManager();
+          break;
+      }
+    }
+    
+    // Search nodes
+    function searchNodes(query) {
+      if (!query) {
+        // Reset all nodes to normal appearance
+        Object.values(nodes).forEach(node => {
+          node.element.style.boxShadow = '';
+          node.element.style.zIndex = '';
+        });
+        return;
+      }
+      
+      const lowerQuery = query.toLowerCase();
+      
+      Object.values(nodes).forEach(node => {
+        if (node.text.toLowerCase().includes(lowerQuery)) {
+          // Highlight matching nodes
+          node.element.style.boxShadow = '0 0 15px rgba(252, 211, 77, 0.8)';
+          node.element.style.zIndex = '10';
+        } else {
+          node.element.style.boxShadow = '';
+          node.element.style.zIndex = '';
+        }
+      });
+    }
+    
+    // Apply layout to nodes
+    function applyLayout(layoutType) {
+      if (!layoutType) return;
+      
+      const nodeValues = Object.values(nodes);
+      if (nodeValues.length === 0) return;
+      
+      // Find the center of the visible area
+      const centerX = 500;
+      const centerY = 500;
+      
+      switch (layoutType) {
+        case 'horizontal':
+          // Horizontal layout with main node in center and others to the right
+          nodeValues.forEach((node, index) => {
+            if (index === 0) {
+              node.x = centerX;
+              node.y = centerY;
+            } else {
+              node.x = centerX + 200 * index;
+              node.y = centerY;
+            }
+            node.element.style.left = `${node.x}px`;
+            node.element.style.top = `${node.y}px`;
+          });
+          break;
+          
+        case 'vertical':
+          // Vertical layout with main node in center and others below
+          nodeValues.forEach((node, index) => {
+            if (index === 0) {
+              node.x = centerX;
+              node.y = centerY;
+            } else {
+              node.x = centerX;
+              node.y = centerY + 100 * index;
+            }
+            node.element.style.left = `${node.x}px`;
+            node.element.style.top = `${node.y}px`;
+          });
+          break;
+          
+        case 'radial':
+          // Radial layout with main node in center and others in a circle around it
+          const radius = 200;
+          const angleStep = (2 * Math.PI) / (nodeValues.length - 1);
+          
+          nodeValues.forEach((node, index) => {
+            if (index === 0) {
+              node.x = centerX;
+              node.y = centerY;
+            } else {
+              const angle = (index - 1) * angleStep;
+              node.x = centerX + radius * Math.cos(angle);
+              node.y = centerY + radius * Math.sin(angle);
+            }
+            node.element.style.left = `${node.x}px`;
+            node.element.style.top = `${node.y}px`;
+          });
+          break;
+      }
+      
+      // Update connections
+      updateConnections();
+      
+      showStatus(`Applied ${layoutType} layout`);
+    }
+    
+    // Handle context menu
+    function handleContextMenu(e) {
+      e.preventDefault();
+      
+      // Check if right-click was on a node
+      const nodeElement = e.target.closest('.node');
+      if (nodeElement) {
+        const nodeId = nodeElement.id;
+        selectNode(nodeId);
+        
+        // Show context menu for nodes
+        showNodeContextMenu(e.clientX, e.clientY, nodeId);
+      } else {
+        // Show context menu for canvas
+        showCanvasContextMenu(e.clientX, e.clientY);
+      }
+    }
+    
+    // Show context menu for nodes
+    function showNodeContextMenu(x, y, nodeId) {
+      closeContextMenu();
+      
+      const menu = document.createElement('div');
+      menu.className = 'context-menu';
+      menu.style.left = `${x}px`;
+      menu.style.top = `${y}px`;
+      
+      menu.innerHTML = `
+        <div class="context-menu-item" data-action="edit"><i class="fas fa-edit"></i> Edit</div>
+        <div class="context-menu-item" data-action="delete"><i class="fas fa-trash"></i> Delete</div>
+        <div class="context-menu-item" data-action="color"><i class="fas fa-palette"></i> Change Color</div>
+        <div class="context-menu-item" data-action="connect"><i class="fas fa-link"></i> Connect</div>
+      `;
+      
+      document.body.appendChild(menu);
+      
+      // Add event listeners
+      menu.querySelectorAll('.context-menu-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          const action = e.currentTarget.getAttribute('data-action');
+          handleNodeContextAction(action, nodeId);
+          menu.remove();
+        });
+      });
+    }
+    
+    // Show context menu for canvas
+    function showCanvasContextMenu(x, y) {
+      closeContextMenu();
+      
+      const menu = document.createElement('div');
+      menu.className = 'context-menu';
+      menu.style.left = `${x}px`;
+      menu.style.top = `${y}px`;
+      
+      menu.innerHTML = `
+        <div class="context-menu-item" data-action="add"><i class="fas fa-plus"></i> Add Node</div>
+        <div class="context-menu-item" data-action="reset"><i class="fas fa-sync"></i> Reset View</div>
+        <div class="context-menu-item" data-action="save"><i class="fas fa-cloud-upload-alt"></i> Save</div>
+        <div class="context-menu-item" data-action="load"><i class="fas fa-cloud-download-alt"></i> Load</div>
+      `;
+      
+      document.body.appendChild(menu);
+      
+      // Add event listeners
+      menu.querySelectorAll('.context-menu-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          const action = e.currentTarget.getAttribute('data-action');
+          handleCanvasContextAction(action, x, y);
+          menu.remove();
+        });
+      });
+    }
+    
+    // Handle node context menu actions
+    function handleNodeContextAction(action, nodeId) {
+      switch (action) {
+        case 'edit':
+          handleEditNode(nodeId);
+          break;
+        case 'delete':
+          handleDelete(nodeId);
+          break;
+        case 'color':
+          handleColorChange();
+          break;
+        case 'connect':
+          connectMode = true;
+          connectFrom = nodeId;
+          document.getElementById('connectBtn').classList.add('active');
+          document.getElementById('mobileConnectBtn').classList.add('active');
+          showStatus(`Connecting from: ${nodes[nodeId].text}. Click on another node to connect.`);
+          break;
+      }
+    }
+    
+    // Handle canvas context menu actions
+    function handleCanvasContextAction(action, x, y) {
+      switch (action) {
+        case 'add':
+          // Convert screen coordinates to world coordinates
+          const worldRect = world.getBoundingClientRect();
+          const worldX = (x - worldRect.left) / scale;
+          const worldY = (y - worldRect.top) / scale;
+          addNode(worldX, worldY);
+          break;
+        case 'reset':
+          resetView();
+          break;
+        case 'save':
+          saveToFirebase();
+          break;
+        case 'load':
+          loadFromFirebase();
+          break;
+      }
+    }
+    
+    // Close context menu
+    function closeContextMenu() {
+      document.querySelectorAll('.context-menu').forEach(menu => menu.remove());
+    }
+    
+    // Handle keyboard shortcuts
+    function handleKeyDown(e) {
+      // Check if focus is in an input field
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+      }
+      
+      switch (e.key) {
+        case 'Delete':
+        case 'Backspace':
+          if (selectedNode) {
+            handleDelete();
+          }
+          break;
+        case 'n':
+        case 'N':
+          if (e.ctrlKey) {
+            e.preventDefault();
+            handleAddNode();
+          }
+          break;
+        case 'e':
+        case 'E':
+          if (e.ctrlKey) {
+            e.preventDefault();
+            handleEditNode();
+          }
+          break;
+        case 's':
+        case 'S':
+          if (e.ctrlKey) {
+            e.preventDefault();
+            saveToFirebase();
+          }
+          break;
+        case 'l':
+        case 'L':
+          if (e.ctrlKey) {
+            e.preventDefault();
+            loadFromFirebase();
+          }
+          break;
+        case '+':
+          if (e.ctrlKey) {
+            e.preventDefault();
+            zoomIn();
+          }
+          break;
+        case '-':
+          if (e.ctrlKey) {
+            e.preventDefault();
+            zoomOut();
+          }
+          break;
+        case '0':
+          if (e.ctrlKey) {
+            e.preventDefault();
+            resetView();
+          }
+          break;
+      }
+    }
+    
+    // Handle window resize
+    function handleResize() {
+      // Update connections to ensure they're properly positioned
+      updateConnections();
+    }
+    
+    // Handle adding a new node
+    function handleAddNode() {
+      // Add node at the center of the current view
+      const stage = document.getElementById('stage');
+      const stageRect = stage.getBoundingClientRect();
+      const worldRect = world.getBoundingClientRect();
+      
+      const centerX = (stageRect.width / 2 - (parseFloat(world.style.left) || 0)) / scale;
+      const centerY = (stageRect.height / 2 - (parseFloat(world.style.top) || 0)) / scale;
+      
+      addNode(centerX, centerY, 'New Node');
+      showStatus('New node added');
+    }
+    
+    // Show status message
+    function showStatus(message) {
+      document.getElementById('status-message').textContent = message;
+    }
+    
+    // Show toast notification
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMessage = document.getElementById('toast-message');
+      
+      toastMessage.textContent = message;
+      toast.className = `toast ${type}`;
+      toast.classList.add('show');
+      
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+    
+    // Initialize the application when the DOM is loaded
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
