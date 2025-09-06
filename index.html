@@ -67,13 +67,12 @@
       overflow: auto; 
       -webkit-overflow-scrolling: touch;
     }
-   #world {
-  position: relative;
-  min-width: 100%;
-  min-height: 100%;
-  transform-origin: center center;
-}
-
+    #world { 
+      position: relative; 
+      width: 100000000000000000000000000000000000000000000000000000000000000000000px; 
+      height: 100000000000000000000000000000000000000000000000000000000000000000000px; 
+      transform-origin: 0 0;
+    }
     .node { 
       position: absolute; 
       min-width: 130px;
@@ -808,7 +807,7 @@
       document.addEventListener('mousemove', handlePan);
       document.addEventListener('mouseup', stopPan);
       
-      // Touch events for mobile
+      // Touch events for mobile - UPDATED
       setupTouchEvents();
       
       // Context menu
@@ -1157,7 +1156,7 @@
       // Mouse events
       nodeElement.addEventListener('mousedown', handleNodeMouseDown);
       
-      // Touch events
+      // Touch events - UPDATED
       nodeElement.addEventListener('touchstart', handleNodeTouchStart, { passive: false });
       nodeElement.addEventListener('touchmove', handleNodeTouchMove, { passive: false });
       nodeElement.addEventListener('touchend', handleNodeTouchEnd);
@@ -1563,14 +1562,11 @@
     
     // Adjust zoom level
     function adjustZoom(delta) {
-  scale += delta;
-  scale = Math.max(0.1, Math.min(5, scale));
-
-  world.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
-  updateZoomDisplay();
-}
-
-
+      scale += delta;
+      scale = Math.max(0.1, Math.min(5, scale)); // Clamp between 0.1 and 5
+      world.style.transform = `scale(${scale})`;
+      updateZoomDisplay();
+    }
     
     // Update zoom display
     function updateZoomDisplay() {
@@ -1637,9 +1633,17 @@
       panning = false;
     }
     
-    // Set up touch events
+    // Set up touch events - UPDATED
     function setupTouchEvents() {
-      world.addEventListener('touchstart', (e) => {
+      // Use a single touch event handler for the stage to avoid conflicts
+      const stage = document.getElementById('stage');
+      
+      stage.addEventListener('touchstart', (e) => {
+        // If touching a node, let the node handle it
+        if (e.target.closest('.node')) {
+          return;
+        }
+        
         if (e.touches.length === 2) {
           // Pinch to zoom
           initialPinchDistance = getDistance(
@@ -1648,11 +1652,17 @@
           );
           e.preventDefault();
         } else if (e.touches.length === 1) {
+          // Start panning
           startPan(e);
         }
       }, { passive: false });
       
-      world.addEventListener('touchmove', (e) => {
+      stage.addEventListener('touchmove', (e) => {
+        // If touching a node, let the node handle it
+        if (e.target.closest('.node')) {
+          return;
+        }
+        
         if (e.touches.length === 2) {
           // Handle pinch zoom
           const currentDistance = getDistance(
@@ -1672,7 +1682,22 @@
         }
       }, { passive: false });
       
-      world.addEventListener('touchend', () => {
+      stage.addEventListener('touchend', (e) => {
+        // If touching a node, let the node handle it
+        if (e.target.closest('.node')) {
+          return;
+        }
+        
+        initialPinchDistance = null;
+        stopPan();
+      });
+      
+      stage.addEventListener('touchcancel', (e) => {
+        // If touching a node, let the node handle it
+        if (e.target.closest('.node')) {
+          return;
+        }
+        
         initialPinchDistance = null;
         stopPan();
       });
@@ -1724,7 +1749,7 @@
       e.preventDefault();
     }
     
-    // Handle node touch start for dragging on mobile
+    // Handle node touch start for dragging on mobile - UPDATED
     function handleNodeTouchStart(e) {
       if (e.touches.length !== 1) return;
       
@@ -1751,7 +1776,7 @@
       e.preventDefault();
     }
     
-    // Handle node touch move for dragging on mobile
+    // Handle node touch move for dragging on mobile - UPDATED
     function handleNodeTouchMove(e) {
       if (!initialTouchPositions || e.touches.length !== 1) return;
       
@@ -1777,10 +1802,14 @@
       e.preventDefault();
     }
     
-    // Handle node touch end for dragging on mobile
-    function handleNodeTouchEnd() {
+    // Handle node touch end for dragging on mobile - UPDATED
+    function handleNodeTouchEnd(e) {
+      // Only save if we were actually dragging a node
+      if (isDraggingNode) {
+        saveToFirebase();
+        isDraggingNode = false;
+      }
       initialTouchPositions = null;
-      isDraggingNode = false;
     }
     
     // Handle context menu
@@ -1831,34 +1860,6 @@
       menu.style.left = x + 'px';
       menu.style.top = y + 'px';
     }
-let offsetX = 0, offsetY = 0;   // current pan offset
-let startX, startY;
-let isPanning = false;
-
-// Start panning
-world.addEventListener('touchstart', (e) => {
-  if (e.touches.length === 1) {
-    isPanning = true;
-    startX = e.touches[0].clientX - offsetX;
-    startY = e.touches[0].clientY - offsetY;
-  }
-}, { passive: false });
-
-// Handle movement
-world.addEventListener('touchmove', (e) => {
-  if (isPanning && e.touches.length === 1) {
-    offsetX = e.touches[0].clientX - startX;
-    offsetY = e.touches[0].clientY - startY;
-    world.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
-    e.preventDefault();
-  }
-}, { passive: false });
-
-// Stop panning
-world.addEventListener('touchend', () => {
-  isPanning = false;
-});
-
     
     // Hide context menu
     function hideContextMenu() {
