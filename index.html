@@ -1,1221 +1,1852 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MindMapper Pro</title>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Advanced Mind Map with Firebase Integration</title>
+  <!-- Add Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <style>
+    /* Your existing CSS styles remain unchanged */
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      margin: 0; 
+      overflow: hidden; 
+      background: #111; 
+      color: #fff; 
+      touch-action: none;
+    }
+    #toolbar { 
+      padding: 8px; 
+      background: #222; 
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      right: 0; 
+      z-index: 10; 
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+    #toolbar button, #toolbar select, #toolbar input { 
+      padding: 10px 14px;
+      background: #444; 
+      color: white;
+      border: 1px solid #666;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      min-height: 20px;
+    }
+    #toolbar button:hover, #toolbar select:hover {
+      background: #555;
+    }
+    #toolbar button.active {
+      background: #2a6b9b;
+    }
+    #toolbar input {
+      background: #333;
+      width: 100px;
+      min-height: 20px;
+    }
+    #toolbar .separator {
+      width: 1px;
+      background: #444;
+      margin: 0 8px;
+      height: 24px;
+    }
+    #stage { 
+      position: absolute; 
+      top: 50px;
+      left: 0; 
+      right: 0; 
+      bottom: 0; 
+      overflow: auto; 
+      -webkit-overflow-scrolling: touch;
+    }
+   #world {
+  position: relative;
+  min-width: 100%;
+  min-height: 100%;
+  transform-origin: center center;
+}
 
-        body {
-            background: linear-gradient(135deg, #6e8efb, #a777e3);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 1200px;
-            background-color: rgba(255, 255, 255, 0.9);
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            overflow: hidden;
-            min-height: 90vh;
-        }
-
-        .auth-container, .app-container {
-            padding: 20px;
-            height: 100%;
-        }
-
-        .app-container {
-            display: none;
-            flex-direction: column;
-            height: 100%;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 20px;
-            background-color: #6c63ff;
-            color: white;
-            border-radius: 10px 10px 0 0;
-        }
-
-        .logo {
-            font-size: 24px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-        }
-
-        .logo i {
-            margin-right: 10px;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-        }
-
-        .user-email {
-            margin-right: 15px;
-        }
-
-        button {
-            background-color: #ff6584;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background-color 0.3s;
-        }
-
-        button:hover {
-            background-color: #e04e70;
-        }
-
-        .btn-primary {
-            background-color: #6c63ff;
-        }
-
-        .btn-primary:hover {
-            background-color: #554fd8;
-        }
-
-        .toolbar {
-            display: flex;
-            padding: 15px;
-            background-color: #f5f5f5;
-            border-bottom: 1px solid #ddd;
-            flex-wrap: wrap;
-        }
-
-        .toolbar button {
-            margin-right: 10px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-        }
-
-        .toolbar button i {
-            margin-right: 5px;
-        }
-
-        .mindmap-container {
-            flex: 1;
-            padding: 20px;
-            overflow: auto;
-            background-color: #f9f9f9;
-            position: relative;
-        }
-
-        #mindmap {
-            width: 100%;
-            height: 100%;
-            min-height: 500px;
-            position: relative;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            overflow: auto;
-            transform-origin: 0 0;
-        }
-
-        .node {
-            position: absolute;
-            background: white;
-            border: 2px solid #6c63ff;
-            border-radius: 8px;
-            padding: 12px;
-            min-width: 120px;
-            text-align: center;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-            transition: all 0.3s;
-            z-index: 10;
-            user-select: none;
-        }
-
-        .node:hover {
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-            transform: translateY(-2px);
-        }
-
-        .node.selected {
-            border-color: #ff6584;
-            background-color: #fff0f3;
-        }
-
-        .node-content {
-            font-size: 14px;
-            font-weight: 500;
-            color: #333;
-        }
-
-        .connection {
-            position: absolute;
-            background-color: #6c63ff;
-            transform-origin: 0 0;
-            z-index: 5;
-            pointer-events: none;
-        }
-
-        .auth-form {
-            max-width: 400px;
-            margin: 40px auto;
-            padding: 30px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .auth-form h2 {
-            text-align: center;
-            margin-bottom: 20px;
-            color: #6c63ff;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-            color: #555;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 16px;
-        }
-
-        .auth-actions {
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .auth-switch {
-            text-align: center;
-            margin-top: 20px;
-            color: #555;
-        }
-
-        .auth-switch a {
-            color: #6c63ff;
-            text-decoration: none;
-            font-weight: 500;
-            cursor: pointer;
-        }
-
-        .node-editor {
-            position: absolute;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            z-index: 100;
-            display: none;
-        }
-
-        .node-editor input {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-
-        .mindmap-controls {
-            display: flex;
-            align-items: center;
-            margin-left: auto;
-        }
-
-        .mindmap-controls button {
-            margin-left: 10px;
-        }
-
-        .mindmap-selector {
-            padding: 8px 12px;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-            margin-right: 10px;
-        }
-
-        .mindmap-manager {
-            margin-left: 10px;
-        }
-
-        .zoom-controls {
-            display: flex;
-            margin-left: 15px;
-        }
-
-        .zoom-controls button {
-            width: 40px;
-            height: 40px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 18px;
-        }
-
-        .connection-mode .node {
-            cursor: crosshair;
-        }
-
-        .mindmap-info {
-            margin-left: 15px;
-            color: #555;
-            font-size: 14px;
-        }
-
-        @media (max-width: 768px) {
-            .toolbar {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            
-            .toolbar button {
-                margin-bottom: 10px;
-                width: 100%;
-            }
-            
-            .user-info {
-                flex-direction: column;
-                align-items: flex-end;
-            }
-            
-            .user-email {
-                margin-right: 0;
-                margin-bottom: 10px;
-            }
-            
-            .mindmap-controls {
-                width: 100%;
-                margin-top: 10px;
-                justify-content: space-between;
-            }
-        }
-
-        .welcome-message {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .welcome-message h1 {
-            color: #6c63ff;
-            margin-bottom: 10px;
-        }
-
-        .welcome-message p {
-            color: #666;
-            font-size: 16px;
-        }
-    </style>
+    .node { 
+      position: absolute; 
+      min-width: 130px;
+      max-width: 250px;
+      padding: 12px 16px;
+      background: #333; 
+      border: 2px solid #666;
+      border-radius: 10px;
+      cursor: grab; 
+      user-select: none; 
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: transform 0.1s ease;
+      font-size: 16px;
+      touch-action: none;
+    }
+    .node:hover {
+      transform: scale(1.02);
+    }
+    .node.selected { 
+      border-color: #0ff; 
+      box-shadow: 0 0 10px rgba(0,255,255,0.5);
+    }
+    .node.dragging {
+      cursor: grabbing;
+      opacity: 0.9;
+    }
+    .node-content {
+      min-height: 24px;
+      word-wrap: break-word;
+    }
+    svg { 
+      position: absolute; 
+      inset: 0; 
+      pointer-events: none; 
+    }
+    line.connection {
+      stroke: #0ff;
+      stroke-width: 2;
+    }
+    line.connection.highlight {
+      stroke: #ff0;
+      stroke-width: 3;
+    }
+    #zoom-display {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.5);
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 14px;
+      z-index: 5;
+    }
+    .context-menu {
+      position: fixed;
+      background: #333;
+      border: 1px solid #555;
+      border-radius: 4px;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+      z-index: 100;
+      min-width: 150px;
+    }
+    .context-menu-item {
+      padding: 12px 16px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .context-menu-item:hover {
+      background: #444;
+    }
+    .color-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 10px;
+      width: 140px;
+    }
+    .color-option {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid #555;
+    }
+    .node-edit-input {
+      position: absolute;
+      background: #222;
+      border: 2px solid #0ff;
+      border-radius: 6px;
+      padding: 8px;
+      color: white;
+      font: inherit;
+      z-index: 20;
+      min-width: 120px;
+      resize: both;
+      overflow: auto;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+      font-size: 16px;
+    }
+    #edit-panel {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #333;
+      border: 2px solid #0ff;
+      border-radius: 8px;
+      padding: 20px;
+      z-index: 100;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+      width: 320px;
+      display: none;
+    }
+    #edit-panel h3 {
+      margin-top: 0;
+      color: #0ff;
+      border-bottom: 1px solid #555;
+      padding-bottom: 10px;
+      font-size: 18px;
+    }
+    #edit-textarea {
+      width: 100%;
+      height: 120px;
+      background: #222;
+      color: white;
+      border: 1px solid #555;
+      border-radius: 4px;
+      padding: 10px;
+      resize: vertical;
+      margin-bottom: 15px;
+      font-family: inherit;
+      font-size: 16px;
+    }
+    #edit-panel-buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    #edit-panel button {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      min-width: 80px;
+    }
+    #edit-panel-save {
+      background: #2a6b9b;
+      color: white;
+    }
+    #edit-panel-cancel {
+      background: #555;
+      color: white;
+    }
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 90;
+      display: none;
+    }
+    
+    /* Firebase auth UI */
+    #auth-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    #auth-box {
+      background: #333;
+      padding: 30px;
+      border-radius: 10px;
+      width: 300px;
+      text-align: center;
+    }
+    #auth-box h2 {
+      margin-top: 0;
+      color: #0ff;
+    }
+    #auth-box input {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: 1px solid #555;
+      border-radius: 4px;
+      background: #222;
+      color: white;
+      box-sizing: border-box;
+    }
+    #auth-box button {
+      width: 100%;
+      padding: 12px;
+      margin: 5px 0;
+      border: none;
+      border-radius: 4px;
+      background: #2a6b9b;
+      color: white;
+      cursor: pointer;
+    }
+    #auth-box p {
+      margin: 15px 0 5px;
+      color: #aaa;
+    }
+    #auth-message {
+      color: #e74c3c;
+      margin: 10px 0;
+      min-height: 20px;
+    }
+    
+    /* Mind Map Manager UI */
+    #map-manager-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      display: none;
+    }
+    #map-manager-box {
+      background: #333;
+      padding: 30px;
+      border-radius: 10px;
+      width: 500px;
+      max-width: 90%;
+      max-height: 80%;
+      overflow-y: auto;
+    }
+    #map-manager-box h2 {
+      margin-top: 0;
+      color: #0ff;
+      border-bottom: 1px solid #555;
+      padding-bottom: 10px;
+    }
+    #map-list {
+      margin: 20px 0;
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #555;
+      border-radius: 4px;
+      background: #222;
+    }
+    .map-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid #444;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .map-item:hover {
+      background: #3a3a3a;
+    }
+    .map-item.active {
+      background: #2a6b9b;
+    }
+    .map-item-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .map-item-actions button {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .map-item-actions .delete-btn {
+      background: #e74c3c;
+      color: white;
+    }
+    .map-item-actions .rename-btn {
+      background: #f39c12;
+      color: white;
+    }
+    #new-map-form {
+      display: flex;
+      gap: 10px;
+      margin: 20px 0;
+    }
+    #new-map-input {
+      flex: 1;
+      padding: 10px;
+      background: #222;
+      color: white;
+      border: 1px solid #555;
+      border-radius: 4px;
+    }
+    #create-map-btn {
+      padding: 10px 16px;
+      background: #2ecc71;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #close-map-manager {
+      width: 100%;
+      padding: 12px;
+      background: #555;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    
+    /* Mobile-specific styles */
+    @media (max-width: 768px) {
+      #toolbar {
+        padding: 6px;
+        gap: 4px;
+        overflow-x: auto;
+        white-space: nowrap;
+        height: 44px;
+      }
+      #toolbar button, #toolbar select, #toolbar input {
+        padding: 8px 10px;
+        font-size: 13px;
+      }
+      #stage {
+        top: 46px;
+      }
+      .node {
+        min-width: 110px;
+        padding: 10px 12px;
+        font-size: 15px;
+      }
+      #zoom-display {
+        bottom: 5px;
+        right: 5px;
+        font-size: 12px;
+        padding: 4px 8px;
+      }
+      #auth-box {
+        width: 90%;
+        max-width: 300px;
+      }
+      #map-manager-box {
+        width: 90%;
+        padding: 20px;
+      }
+      .map-item {
+        padding: 10px 12px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      .map-item-actions {
+        align-self: flex-end;
+      }
+    }
+    
+    /* Prevent text selection on UI elements */
+    .node, #toolbar button, .context-menu-item {
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+    
+    /* Long press detection style */
+    .long-press {
+      animation: pulse 0.8s infinite alternate;
+    }
+    @keyframes pulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.05); }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="auth-container" id="authContainer">
-            <div class="welcome-message">
-                <h1>MindMapper Pro</h1>
-                <p>Create and manage your mind maps with ease</p>
-            </div>
-            
-            <div class="auth-form" id="loginForm">
-                <h2>Login</h2>
-                <div class="form-group">
-                    <label for="loginEmail">Email</label>
-                    <input type="email" id="loginEmail" placeholder="Enter your email">
-                </div>
-                <div class="form-group">
-                    <label for="loginPassword">Password</label>
-                    <input type="password" id="loginPassword" placeholder="Enter your password">
-                </div>
-                <div class="auth-actions">
-                    <button class="btn-primary" onclick="login()">Login</button>
-                    <button onclick="resetPassword()">Reset Password</button>
-                </div>
-                <div class="auth-switch">
-                    Don't have an account? <a onclick="showRegister()">Register</a>
-                </div>
-            </div>
-
-            <div class="auth-form" id="registerForm" style="display: none;">
-                <h2>Register</h2>
-                <div class="form-group">
-                    <label for="registerEmail">Email</label>
-                    <input type="email" id="registerEmail" placeholder="Enter your email">
-                </div>
-                <div class="form-group">
-                    <label for="registerPassword">Password</label>
-                    <input type="password" id="registerPassword" placeholder="Create a password">
-                </div>
-                <div class="form-group">
-                    <label for="confirmPassword">Confirm Password</label>
-                    <input type="password" id="confirmPassword" placeholder="Confirm your password">
-                </div>
-                <div class="auth-actions">
-                    <button class="btn-primary" onclick="register()">Register</button>
-                    <button onclick="showLogin()">Back to Login</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="app-container" id="appContainer">
-            <header>
-                <div class="logo">
-                    <i>🧠</i> MindMapper Pro
-                </div>
-                <div class="user-info">
-                    <div class="user-email" id="userEmail"></div>
-                    <button onclick="logout()">Logout</button>
-                </div>
-            </header>
-
-            <div class="toolbar">
-                <button class="btn-primary" onclick="addNode()">
-                    <i>+</i> Add Node
-                </button>
-                <button onclick="deleteNode()">
-                    <i>🗑️</i> Delete Node
-                </button>
-                <button id="connectButton" onclick="toggleConnectionMode()">
-                    <i>🔗</i> Connect Nodes
-                </button>
-                <button onclick="saveMindmap()">
-                    <i>💾</i> Save Mindmap
-                </button>
-                
-                <div class="mindmap-controls">
-                    <select class="mindmap-selector" id="mindmapSelector" onchange="switchMindmap()">
-                        <option value="">Select Mindmap</option>
-                    </select>
-                    <button class="mindmap-manager" onclick="manageMindmaps()">
-                        <i>📋</i> Manage
-                    </button>
-                    <button onclick="createNewMindmap()">
-                        <i>➕</i> New
-                    </button>
-                    
-                    <div class="zoom-controls">
-                        <button onclick="zoomOut()">-</button>
-                        <button onclick="resetZoom()">100%</button>
-                        <button onclick="zoomIn()">+</button>
-                    </div>
-                    
-                    <div class="mindmap-info" id="zoomLevel">100%</div>
-                </div>
-            </div>
-
-            <div class="mindmap-container">
-                <div id="mindmap"></div>
-            </div>
-        </div>
+  <!-- Firebase Auth UI -->
+  <div id="auth-container">
+    <div id="auth-box">
+      <h2>Mind Map Login</h2>
+      <div id="auth-message"></div>
+      <input type="email" id="email-input" placeholder="Email">
+      <input type="password" id="password-input" placeholder="Password">
+      <button id="login-btn">Login</button>
+      <button id="signup-btn">Sign Up</button>
+      <p>Or continue as</p>
+      <button id="guest-btn">Guest</button>
     </div>
+  </div>
 
-    <script>
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyBlQI16Nmx5oo3VzyCDEb6V4M2cH9Bbwc8",
-            authDomain: "mindmapping-58435.firebaseapp.com",
-            databaseURL: "https://mindmapping-58435-default-rtdb.firebaseio.com",
-            projectId: "mindmapping-58435",
-            storageBucket: "mindmapping-58435.firebasestorage.app",
-            messagingSenderId: "1059085761579",
-            appId: "1:1059085761579:web:5422cefb56f5989af7be6e",
-            measurementId: "G-9F7EZZ2C9T"
+  <!-- Mind Map Manager UI -->
+  <div id="map-manager-container">
+    <div id="map-manager-box">
+      <h2>Manage Mind Maps</h2>
+      <div id="new-map-form">
+        <input type="text" id="new-map-input" placeholder="New map name">
+        <button id="create-map-btn">Create New Map</button>
+      </div>
+      <div id="map-list">
+        <!-- Map items will be added here dynamically -->
+      </div>
+      <button id="close-map-manager">Close</button>
+    </div>
+  </div>
+
+  <div id="toolbar">
+    <button id="addBtn">Add Node</button>
+    <button id="connectBtn">Connect Nodes</button>
+    <button id="editBtn">Edit Node</button>
+    <button id="deleteBtn">Delete</button>
+    <div class="separator"></div>
+    <button id="zoomInBtn">Zoom In</button>
+    <button id="zoomOutBtn">Zoom Out</button>
+    <button id="resetViewBtn">Reset View</button>
+    <div class="separator"></div>
+    <button id="colorBtn">Color</button>
+    <button id="exportBtn">Export</button>
+    <button id="importBtn">Import</button>
+    <div class="separator"></div>
+    <select id="layoutBtn">
+      <option value="">Layout</option>
+      <option value="horizontal">Horizontal</option>
+      <option value="vertical">Vertical</option>
+      <option value="radial">Radial</option>
+    </select>
+    <input type="text" id="searchInput" placeholder="Search nodes...">
+    <div class="separator"></div>
+    <button id="saveBtn">Save to Cloud</button>
+    <button id="loadBtn">Load from Cloud</button>
+    <button id="mapsBtn">Manage Maps</button>
+    <button id="logoutBtn" style="display:none;">Logout</button>
+  </div>
+  <div id="stage">
+    <div id="world">
+      <svg id="edges" width="100000000000000000000000000000000000000000000000000000000000000000000" height="100000000000000000000000000000000000000000000000000000000000000000000"></svg>
+    </div>
+  </div>
+  <div id="zoom-display">100%</div>
+  
+  <!-- Edit Panel -->
+  <div id="overlay"></div>
+  <div id="edit-panel">
+    <h3>Edit Node Content</h3>
+    <textarea id="edit-textarea"></textarea>
+    <div id="edit-panel-buttons">
+      <button id="edit-panel-cancel">Cancel</button>
+      <button id="edit-panel-save">Save</button>
+    </div>
+  </div>
+  
+  <script>
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBlQI16Nmx5oo3VzyCDEb6V4M2cH9Bbwc8",
+      authDomain: "mindmapping-58435.firebaseapp.com",
+      databaseURL: "https://mindmapping-58435-default-rtdb.firebaseio.com",
+      projectId: "mindmapping-58435",
+      storageBucket: "mindmapping-58435.firebasestorage.app",
+      messagingSenderId: "1059085761579",
+      appId: "1:1059085761579:web:5422cefb56f5989af7be6e",
+      measurementId: "G-9F7EZZ2C9T"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const auth = firebase.auth();
+    
+    // Main application variables
+    const world = document.getElementById('world');
+    const edgesSVG = document.getElementById('edges');
+    let nodes = {};
+    let edges = [];
+    let idCounter = 1;
+    let connectMode = false;
+    let editMode = false;
+    let connectFrom = null;
+    let selectedNode = null;
+    let scale = 1;
+    let panning = false;
+    let startX, startY;
+    let initialPinchDistance = null;
+    let lastX = 0, lastY = 0;
+    let activeEditInput = null;
+    let longPressTimer = null;
+    let isLongPress = false;
+    let currentUser = null;
+    let currentMapId = 'default';
+    let mindMaps = {}; // Store all user's mind maps
+    
+    // New variables for fixing node dragging
+    let isDraggingNode = false;
+    let initialTouchPositions = null;
+    
+    // Initialize the application
+    function init() {
+      // Setup auth event listeners
+      setupAuthEventListeners();
+      
+      // Check if user was previously logged in
+      const savedUser = localStorage.getItem('mindmap_user');
+      if (savedUser) {
+        try {
+          currentUser = JSON.parse(savedUser);
+          document.getElementById('auth-container').style.display = 'none';
+          document.getElementById('logoutBtn').style.display = 'block';
+          initApp();
+        } catch (e) {
+          console.error('Error parsing saved user:', e);
+          localStorage.removeItem('mindmap_user');
+        }
+      }
+    }
+    
+    // Initialize the app after authentication
+    function initApp() {
+      // Add event listeners
+      setupEventListeners();
+      
+      // Load list of mind maps
+      loadMindMapsList();
+      
+      // Try to load from Firebase
+      loadFromFirebase();
+      
+      // If no data, add initial node
+      if (Object.keys(nodes).length === 0) {
+        addNode(500, 500, 'Main Topic');
+      }
+      
+      // Update zoom display
+      updateZoomDisplay();
+    }
+    
+    // Set up authentication event listeners
+    function setupAuthEventListeners() {
+      document.getElementById('login-btn').onclick = handleLogin;
+      document.getElementById('signup-btn').onclick = handleSignup;
+      document.getElementById('guest-btn').onclick = handleGuest;
+      document.getElementById('logoutBtn').onclick = handleLogout;
+      
+      // Allow submitting with Enter key
+      document.getElementById('email-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleLogin();
+      });
+      document.getElementById('password-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleLogin();
+      });
+    }
+    
+    // Handle user login
+    function handleLogin() {
+      const email = document.getElementById('email-input').value;
+      const password = document.getElementById('password-input').value;
+      const authMessage = document.getElementById('auth-message');
+      
+      if (!email || !password) {
+        authMessage.textContent = 'Please enter both email and password';
+        return;
+      }
+      
+      authMessage.textContent = 'Logging in...';
+      
+      auth.signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          currentUser = userCredential.user;
+          localStorage.setItem('mindmap_user', JSON.stringify({
+            uid: currentUser.uid,
+            email: currentUser.email
+          }));
+          document.getElementById('auth-container').style.display = 'none';
+          document.getElementById('logoutBtn').style.display = 'block';
+          authMessage.textContent = '';
+          initApp();
+        })
+        .catch((error) => {
+          authMessage.textContent = error.message;
+        });
+    }
+    
+    // Handle user signup
+    function handleSignup() {
+      const email = document.getElementById('email-input').value;
+      const password = document.getElementById('password-input').value;
+      const authMessage = document.getElementById('auth-message');
+      
+      if (!email || !password) {
+        authMessage.textContent = 'Please enter both email and password';
+        return;
+      }
+      
+      if (password.length < 6) {
+        authMessage.textContent = 'Password should be at least 6 characters';
+        return;
+      }
+      
+      authMessage.textContent = 'Creating account...';
+      
+      auth.createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          currentUser = userCredential.user;
+          localStorage.setItem('mindmap_user', JSON.stringify({
+            uid: currentUser.uid,
+            email: currentUser.email
+          }));
+          document.getElementById('auth-container').style.display = 'none';
+          document.getElementById('logoutBtn').style.display = 'block';
+          authMessage.textContent = '';
+          initApp();
+        })
+        .catch((error) => {
+          authMessage.textContent = error.message;
+        });
+    }
+    
+    // Handle guest access
+    function handleGuest() {
+      currentUser = { uid: 'guest', email: 'guest@example.com' };
+      document.getElementById('auth-container').style.display = 'none';
+      initApp();
+    }
+    
+    // Handle user logout
+    function handleLogout() {
+      auth.signOut().then(() => {
+        currentUser = null;
+        localStorage.removeItem('mindmap_user');
+        document.getElementById('logoutBtn').style.display = 'none';
+        document.getElementById('auth-container').style.display = 'flex';
+        
+        // Clear current mind map
+        nodes = {};
+        edges = [];
+        idCounter = 1;
+        world.querySelectorAll('.node').forEach(n => n.remove());
+        edgesSVG.innerHTML = '';
+        clearSelection();
+      }).catch((error) => {
+        console.error('Logout error:', error);
+      });
+    }
+    
+    // Set up all event listeners
+    function setupEventListeners() {
+      // Toolbar buttons
+      document.getElementById('addBtn').onclick = () => {
+        const x = 500 + Math.random() * 400;
+        const y = 500 + Math.random() * 400;
+        addNode(x, y, 'New Node');
+        saveToFirebase(); // Auto-save after adding node
+      };
+      
+      document.getElementById('connectBtn').onclick = () => {
+        connectMode = !connectMode;
+        editMode = false;
+        document.getElementById('connectBtn').classList.toggle('active', connectMode);
+        document.getElementById('editBtn').classList.remove('active');
+        connectFrom = null;
+        clearSelection();
+      };
+      
+      document.getElementById('editBtn').onclick = () => {
+        editMode = !editMode;
+        connectMode = false;
+        document.getElementById('editBtn').classList.toggle('active', editMode);
+        document.getElementById('connectBtn').classList.remove('active');
+      };
+      
+      document.getElementById('deleteBtn').onclick = () => {
+        deleteSelected();
+        saveToFirebase(); // Auto-save after deletion
+      };
+      
+      document.getElementById('zoomInBtn').onclick = () => adjustZoom(0.1);
+      document.getElementById('zoomOutBtn').onclick = () => adjustZoom(-0.1);
+      document.getElementById('resetViewBtn').onclick = resetView;
+      
+      document.getElementById('colorBtn').onclick = showColorMenu;
+      document.getElementById('exportBtn').onclick = exportData;
+      document.getElementById('importBtn').onclick = () => document.getElementById('importInput')?.click() || createImportInput();
+      
+      document.getElementById('layoutBtn').onchange = (e) => {
+        if (e.target.value) {
+          applyLayout(e.target.value);
+          saveToFirebase(); // Auto-save after layout change
+        }
+      };
+      
+      document.getElementById('searchInput').oninput = (e) => {
+        searchNodes(e.target.value);
+      };
+      
+      // Firebase save/load buttons
+      document.getElementById('saveBtn').onclick = saveToFirebase;
+      document.getElementById('loadBtn').onclick = loadFromFirebase;
+      
+      // Map management button
+      document.getElementById('mapsBtn').onclick = showMapManager;
+      
+      // Edit panel buttons
+      document.getElementById('edit-panel-save').onclick = () => {
+        saveEditPanel();
+        saveToFirebase(); // Auto-save after editing
+      };
+      document.getElementById('edit-panel-cancel').onclick = closeEditPanel;
+      document.getElementById('overlay').onclick = closeEditPanel;
+      
+      // Map manager event listeners
+      document.getElementById('create-map-btn').onclick = createNewMap;
+      document.getElementById('close-map-manager').onclick = hideMapManager;
+      
+      // Allow Enter key to create new map
+      document.getElementById('new-map-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') createNewMap();
+      });
+      
+      // Panning and zooming
+      world.addEventListener('wheel', handleWheel, { passive: false });
+      world.addEventListener('mousedown', startPan);
+      document.addEventListener('mousemove', handlePan);
+      document.addEventListener('mouseup', stopPan);
+      
+      // Touch events for mobile
+      setupTouchEvents();
+      
+      // Context menu
+      world.addEventListener('contextmenu', handleContextMenu);
+      
+      // Click outside to clear selection
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.node') && !e.target.closest('.context-menu') && 
+            !e.target.closest('.node-edit-input') && !e.target.closest('#edit-panel') &&
+            !e.target.closest('#map-manager-container')) {
+          clearSelection();
+          hideContextMenu();
+        }
+      });
+      
+      // Double click to edit
+      world.addEventListener('dblclick', (e) => {
+        const node = e.target.closest('.node');
+        if (node) {
+          const nodeId = node.dataset.id;
+          selectNode(nodeId);
+          showEditPanel(nodes[nodeId]);
+        }
+      });
+      
+      // Auto-save on node drag end
+      document.addEventListener('mouseup', () => {
+        if (isDraggingNode) {
+          saveToFirebase();
+          isDraggingNode = false;
+        }
+      });
+    }
+    
+    // Save mind map to Firebase
+    function saveToFirebase() {
+      if (!currentUser) return;
+      
+      const data = {
+        nodes: Object.values(nodes),
+        edges: edges,
+        idCounter: idCounter,
+        lastUpdated: Date.now(),
+        name: currentMapId === 'default' ? 'Default Map' : currentMapId
+      };
+      
+      const userPath = currentUser.uid === 'guest' ? 'guest_maps' : `users/${currentUser.uid}/maps`;
+      
+      database.ref(`${userPath}/${currentMapId}`).set(data)
+        .then(() => {
+          console.log('Data saved successfully to Firebase');
+          // Show a temporary save confirmation
+          const saveBtn = document.getElementById('saveBtn');
+          const originalText = saveBtn.textContent;
+          saveBtn.textContent = 'Saved!';
+          setTimeout(() => {
+            saveBtn.textContent = originalText;
+          }, 2000);
+          
+          // Refresh the map list to show updated timestamp
+          loadMindMapsList();
+        })
+        .catch((error) => {
+          console.error('Error saving data to Firebase:', error);
+          alert('Failed to save to cloud: ' + error.message);
+        });
+    }
+    
+    // Load mind map from Firebase
+    function loadFromFirebase() {
+      if (!currentUser) return;
+      
+      const userPath = currentUser.uid === 'guest' ? 'guest_maps' : `users/${currentUser.uid}/maps`;
+      
+      database.ref(`${userPath}/${currentMapId}`).once('value')
+        .then((snapshot) => {
+          const data = snapshot.val();
+          if (data) {
+            loadData(data);
+            console.log('Data loaded successfully from Firebase');
+          } else {
+            console.log('No data found in Firebase, using local data');
+            // Create a new empty map if none exists
+            if (Object.keys(nodes).length === 0) {
+              addNode(500, 500, 'Main Topic');
+            }
+          }
+        })
+        .catch((error) => {
+          console.error('Error loading data from Firebase:', error);
+          alert('Failed to load from cloud: ' + error.message);
+        });
+    }
+    
+    // Load list of all mind maps for the current user
+    function loadMindMapsList() {
+      if (!currentUser) return;
+      
+      const userPath = currentUser.uid === 'guest' ? 'guest_maps' : `users/${currentUser.uid}/maps`;
+      
+      database.ref(userPath).once('value')
+        .then((snapshot) => {
+          const maps = snapshot.val();
+          mindMaps = maps || {};
+          renderMapsList();
+        })
+        .catch((error) => {
+          console.error('Error loading mind maps list:', error);
+        });
+    }
+    
+    // Render the list of mind maps in the manager UI
+    function renderMapsList() {
+      const mapList = document.getElementById('map-list');
+      mapList.innerHTML = '';
+      
+      if (!mindMaps || Object.keys(mindMaps).length === 0) {
+        mapList.innerHTML = '<div class="map-item" style="justify-content: center; cursor: default;">No maps found</div>';
+        return;
+      }
+      
+      Object.entries(mindMaps).forEach(([mapId, mapData]) => {
+        const mapItem = document.createElement('div');
+        mapItem.className = 'map-item';
+        if (mapId === currentMapId) {
+          mapItem.classList.add('active');
+        }
+        
+        const mapName = document.createElement('div');
+        mapName.className = 'map-name';
+        mapName.textContent = mapData.name || mapId;
+        
+        const mapInfo = document.createElement('div');
+        mapInfo.className = 'map-info';
+        mapInfo.textContent = new Date(mapData.lastUpdated).toLocaleString();
+        
+        const mapActions = document.createElement('div');
+        mapActions.className = 'map-item-actions';
+        
+        const loadBtn = document.createElement('button');
+        loadBtn.textContent = 'Load';
+        loadBtn.onclick = (e) => {
+          e.stopPropagation();
+          switchToMap(mapId);
         };
-
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const database = firebase.database();
-
-        // DOM elements
-        const authContainer = document.getElementById('authContainer');
-        const appContainer = document.getElementById('appContainer');
-        const loginForm = document.getElementById('loginForm');
-        const registerForm = document.getElementById('registerForm');
-        const userEmail = document.getElementById('userEmail');
-        const mindmap = document.getElementById('mindmap');
-        const mindmapSelector = document.getElementById('mindmapSelector');
-        const connectButton = document.getElementById('connectButton');
-        const zoomLevel = document.getElementById('zoomLevel');
-
-        // Mindmap state
-        let nodes = [];
-        let connections = [];
-        let selectedNode = null;
-        let connectionSource = null;
-        let isConnectionMode = false;
-        let nodeIdCounter = 0;
-        let connectionIdCounter = 0;
-        let currentMindmapId = null;
-        let mindmaps = {};
-        let scale = 1;
-        let offsetX = 0;
-        let offsetY = 0;
-        let isDragging = false;
-        let startX, startY;
-        let initialOffsetX, initialOffsetY;
-
-        // Authentication state observer
-        auth.onAuthStateChanged((user) => {
-            if (user) {
-                // User is signed in
-                userEmail.textContent = user.email;
-                authContainer.style.display = 'none';
-                appContainer.style.display = 'flex';
-                loadMindmaps();
-            } else {
-                // User is signed out
-                authContainer.style.display = 'block';
-                appContainer.style.display = 'none';
-            }
+        
+        const renameBtn = document.createElement('button');
+        renameBtn.textContent = 'Rename';
+        renameBtn.className = 'rename-btn';
+        renameBtn.onclick = (e) => {
+          e.stopPropagation();
+          renameMap(mapId);
+        };
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation();
+          deleteMap(mapId);
+        };
+        
+        mapActions.appendChild(loadBtn);
+        mapActions.appendChild(renameBtn);
+        mapActions.appendChild(deleteBtn);
+        
+        mapItem.appendChild(mapName);
+        mapItem.appendChild(mapInfo);
+        mapItem.appendChild(mapActions);
+        
+        mapList.appendChild(mapItem);
+      });
+    }
+    
+    // Switch to a different mind map
+    function switchToMap(mapId) {
+      // Save current map first
+      saveToFirebase();
+      
+      // Clear current data
+      nodes = {};
+      edges = [];
+      idCounter = 1;
+      world.querySelectorAll('.node').forEach(n => n.remove());
+      edgesSVG.innerHTML = '';
+      clearSelection();
+      
+      // Set new map ID and load
+      currentMapId = mapId;
+      loadFromFirebase();
+      hideMapManager();
+    }
+    
+    // Create a new mind map
+    function createNewMap() {
+      const mapNameInput = document.getElementById('new-map-input');
+      const mapName = mapNameInput.value.trim();
+      
+      if (!mapName) {
+        alert('Please enter a name for your new mind map');
+        return;
+      }
+      
+      // Generate a unique ID for the map
+      const mapId = 'map_' + Date.now();
+      
+      // Create initial data for the new map
+      const initialData = {
+        nodes: [],
+        edges: [],
+        idCounter: 1,
+        lastUpdated: Date.now(),
+        name: mapName
+      };
+      
+      const userPath = currentUser.uid === 'guest' ? 'guest_maps' : `users/${currentUser.uid}/maps`;
+      
+      database.ref(`${userPath}/${mapId}`).set(initialData)
+        .then(() => {
+          // Add the new map to our local list
+          mindMaps[mapId] = initialData;
+          renderMapsList();
+          
+          // Clear the input field
+          mapNameInput.value = '';
+          
+          // Switch to the new map
+          switchToMap(mapId);
+        })
+        .catch((error) => {
+          console.error('Error creating new map:', error);
+          alert('Failed to create new map: ' + error.message);
         });
-
-        // Auth functions
-        function showRegister() {
-            loginForm.style.display = 'none';
-            registerForm.style.display = 'block';
-        }
-
-        function showLogin() {
-            registerForm.style.display = 'none';
-            loginForm.style.display = 'block';
-        }
-
-        function login() {
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            
-            auth.signInWithEmailAndPassword(email, password)
-                .then((userCredential) => {
-                    // Signed in
-                    console.log('User logged in:', userCredential.user);
-                })
-                .catch((error) => {
-                    alert('Login error: ' + error.message);
-                });
-        }
-
-        function register() {
-            const email = document.getElementById('registerEmail').value;
-            const password = document.getElementById('registerPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            
-            if (password !== confirmPassword) {
-                alert('Passwords do not match');
-                return;
-            }
-            
-            auth.createUserWithEmailAndPassword(email, password)
-                .then((userCredential) => {
-                    // Signed up
-                    console.log('User registered:', userCredential.user);
-                })
-                .catch((error) => {
-                    alert('Registration error: ' + error.message);
-                });
-        }
-
-        function resetPassword() {
-            const email = document.getElementById('loginEmail').value;
-            if (!email) {
-                alert('Please enter your email address first');
-                return;
-            }
-            
-            auth.sendPasswordResetEmail(email)
-                .then(() => {
-                    alert('Password reset email sent!');
-                })
-                .catch((error) => {
-                    alert('Error sending reset email: ' + error.message);
-                });
-        }
-
-        function logout() {
-            auth.signOut()
-                .then(() => {
-                    console.log('User signed out');
-                })
-                .catch((error) => {
-                    alert('Logout error: ' + error.message);
-                });
-        }
-
-        // Mindmap management functions
-        function loadMindmaps() {
-            const user = auth.currentUser;
-            if (!user) return;
-            
-            database.ref('users/' + user.uid + '/mindmaps').once('value')
-                .then((snapshot) => {
-                    const data = snapshot.val();
-                    if (data) {
-                        mindmaps = data;
-                        updateMindmapSelector();
-                        
-                        // Load the first mindmap if none is selected
-                        if (!currentMindmapId && Object.keys(mindmaps).length > 0) {
-                            const firstMindmapId = Object.keys(mindmaps)[0];
-                            switchToMindmap(firstMindmapId);
-                        }
-                    }
-                })
-                .catch((error) => {
-                    console.error('Error loading mindmaps:', error);
-                });
-        }
-
-        function updateMindmapSelector() {
-            // Clear existing options except the first one
-            while (mindmapSelector.options.length > 1) {
-                mindmapSelector.remove(1);
-            }
-            
-            // Add mindmaps to selector
-            for (const id in mindmaps) {
-                const option = document.createElement('option');
-                option.value = id;
-                option.textContent = mindmaps[id].name || 'Unnamed Mindmap';
-                option.selected = (id === currentMindmapId);
-                mindmapSelector.appendChild(option);
-            }
-        }
-
-        function switchMindmap() {
-            const selectedId = mindmapSelector.value;
-            if (selectedId && selectedId !== currentMindmapId) {
-                // Save current mindmap first
-                if (currentMindmapId) {
-                    saveCurrentMindmapData();
-                }
-                
-                // Switch to selected mindmap
-                switchToMindmap(selectedId);
-            }
-        }
-
-        function switchToMindmap(id) {
-            currentMindmapId = id;
-            const mindmapData = mindmaps[id];
-            
-            if (mindmapData) {
-                nodes = mindmapData.nodes || [];
-                connections = mindmapData.connections || [];
-                nodeIdCounter = mindmapData.nodeIdCounter || 0;
-                connectionIdCounter = mindmapData.connectionIdCounter || 0;
-            } else {
-                nodes = [];
-                connections = [];
-                nodeIdCounter = 0;
-                connectionIdCounter = 0;
-            }
-            
-            selectedNode = null;
-            connectionSource = null;
-            isConnectionMode = false;
-            connectButton.classList.remove('active');
-            
-            // Reset view
-            scale = 1;
-            offsetX = 0;
-            offsetY = 0;
-            updateMindmapTransform();
-            
-            renderMindmap();
-        }
-
-        function saveCurrentMindmapData() {
-            if (!currentMindmapId) return;
-            
-            mindmaps[currentMindmapId] = {
-                name: mindmaps[currentMindmapId]?.name || 'New Mindmap',
-                nodes: nodes,
-                connections: connections,
-                nodeIdCounter: nodeIdCounter,
-                connectionIdCounter: connectionIdCounter
-            };
-        }
-
-        function createNewMindmap() {
-            const mindmapName = prompt('Enter a name for your new mindmap:');
-            if (mindmapName === null) return;
-            
-            const user = auth.currentUser;
-            if (!user) {
-                alert('You must be logged in to create mindmaps');
-                return;
-            }
-            
-            // Generate a unique ID for the new mindmap
-            const newMindmapId = 'mindmap_' + Date.now();
-            
-            // Save current mindmap first if one is active
-            if (currentMindmapId) {
-                saveCurrentMindmapData();
-            }
-            
-            // Create the new mindmap
-            mindmaps[newMindmapId] = {
-                name: mindmapName,
-                nodes: [],
-                connections: [],
-                nodeIdCounter: 0,
-                connectionIdCounter: 0
-            };
-            
-            // Switch to the new mindmap
-            currentMindmapId = newMindmapId;
-            nodes = [];
-            connections = [];
-            nodeIdCounter = 0;
-            connectionIdCounter = 0;
-            selectedNode = null;
-            
-            // Reset view
-            scale = 1;
-            offsetX = 0;
-            offsetY = 0;
-            updateMindmapTransform();
-            
-            // Add a central node
-            addCentralNode();
-            
-            // Update UI
-            updateMindmapSelector();
-            renderMindmap();
-            
-            // Save to database
-            saveAllMindmaps();
-        }
-
-        function manageMindmaps() {
-            let managementText = "Your Mindmaps:\n\n";
-            for (const id in mindmaps) {
-                managementText += `- ${mindmaps[id].name}\n`;
-            }
-            
-            const action = prompt(managementText + "\nEnter 'delete' to remove a mindmap or 'rename' to rename one:");
-            if (!action) return;
-            
-            if (action === 'delete') {
-                const toDelete = prompt("Enter the name of the mindmap to delete:");
-                if (!toDelete) return;
-                
-                let foundId = null;
-                for (const id in mindmaps) {
-                    if (mindmaps[id].name === toDelete) {
-                        foundId = id;
-                        break;
-                    }
-                }
-                
-                if (foundId) {
-                    if (confirm(`Are you sure you want to delete "${toDelete}"?`)) {
-                        // If deleting the current mindmap, switch to another one first
-                        if (foundId === currentMindmapId) {
-                            const otherMindmaps = Object.keys(mindmaps).filter(id => id !== foundId);
-                            if (otherMindmaps.length > 0) {
-                                switchToMindmap(otherMindmaps[0]);
-                            } else {
-                                currentMindmapId = null;
-                                nodes = [];
-                                connections = [];
-                                renderMindmap();
-                            }
-                        }
-                        
-                        delete mindmaps[foundId];
-                        updateMindmapSelector();
-                        saveAllMindmaps();
-                    }
-                } else {
-                    alert('Mindmap not found');
-                }
-            } else if (action === 'rename') {
-                const toRename = prompt("Enter the name of the mindmap to rename:");
-                if (!toRename) return;
-                
-                let foundId = null;
-                for (const id in mindmaps) {
-                    if (mindmaps[id].name === toRename) {
-                        foundId = id;
-                        break;
-                    }
-                }
-                
-                if (foundId) {
-                    const newName = prompt("Enter the new name:", toRename);
-                    if (newName) {
-                        mindmaps[foundId].name = newName;
-                        updateMindmapSelector();
-                        saveAllMindmaps();
-                    }
-                } else {
-                    alert('Mindmap not found');
-                }
-            }
-        }
-
-        function saveAllMindmaps() {
-            const user = auth.currentUser;
-            if (!user) return;
-            
-            database.ref('users/' + user.uid + '/mindmaps').set(mindmaps)
-                .catch((error) => {
-                    alert('Error saving mindmaps: ' + error.message);
-                });
-        }
-
-        // Mindmap functions
-        function addNode() {
-            if (!currentMindmapId) {
-                alert('Please create or select a mindmap first');
-                return;
-            }
-            
-            const newNode = {
-                id: nodeIdCounter++,
-                x: (mindmap.offsetWidth / 2 - 60 - offsetX) / scale,
-                y: (mindmap.offsetHeight / 2 - 30 - offsetY) / scale,
-                content: 'New Node',
-                width: 120,
-                height: 60
-            };
-            
-            nodes.push(newNode);
-            renderMindmap();
-        }
-
-        function addCentralNode() {
-            const centralNode = {
-                id: nodeIdCounter++,
-                x: mindmap.offsetWidth / 2 - 60,
-                y: mindmap.offsetHeight / 2 - 30,
-                content: 'Central Idea',
-                width: 120,
-                height: 60
-            };
-            nodes.push(centralNode);
-            renderMindmap();
-        }
-
-        function deleteNode() {
-            if (!selectedNode) {
-                alert('Please select a node to delete');
-                return;
-            }
-            
-            // Remove any connections to/from this node
-            connections = connections.filter(conn => 
-                conn.sourceId !== selectedNode.id && conn.targetId !== selectedNode.id
-            );
-            
-            nodes = nodes.filter(node => node.id !== selectedNode.id);
-            selectedNode = null;
-            renderMindmap();
-        }
-
-        function toggleConnectionMode() {
-            isConnectionMode = !isConnectionMode;
-            connectionSource = null;
-            
-            if (isConnectionMode) {
-                connectButton.classList.add('active');
-                mindmap.classList.add('connection-mode');
-            } else {
-                connectButton.classList.remove('active');
-                mindmap.classList.remove('connection-mode');
-            }
-        }
-
-        function createConnection(sourceId, targetId) {
-            // Check if connection already exists
-            const connectionExists = connections.some(conn => 
-                (conn.sourceId === sourceId && conn.targetId === targetId) ||
-                (conn.sourceId === targetId && conn.targetId === sourceId)
-            );
-            
-            if (connectionExists) {
-                alert('These nodes are already connected');
-                return;
-            }
-            
-            if (sourceId === targetId) {
-                alert('Cannot connect a node to itself');
-                return;
-            }
-            
-            const newConnection = {
-                id: connectionIdCounter++,
-                sourceId: sourceId,
-                targetId: targetId
-            };
-            
-            connections.push(newConnection);
-            renderMindmap();
-        }
-
-        function renderMindmap() {
-            mindmap.innerHTML = '';
-            
-            // Draw connections first (so they appear behind nodes)
-            connections.forEach(conn => {
-                const sourceNode = nodes.find(n => n.id === conn.sourceId);
-                const targetNode = nodes.find(n => n.id === conn.targetId);
-                
-                if (sourceNode && targetNode) {
-                    drawConnection(sourceNode, targetNode);
-                }
-            });
-            
-            // Draw nodes
-            nodes.forEach(node => {
-                const nodeElement = document.createElement('div');
-                nodeElement.className = 'node' + (selectedNode && selectedNode.id === node.id ? ' selected' : '');
-                nodeElement.style.left = (node.x * scale + offsetX) + 'px';
-                nodeElement.style.top = (node.y * scale + offsetY) + 'px';
-                nodeElement.style.width = (node.width * scale) + 'px';
-                nodeElement.style.height = (node.height * scale) + 'px';
-                nodeElement.innerHTML = `<div class="node-content">${node.content}</div>`;
-                
-                nodeElement.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    
-                    if (isConnectionMode) {
-                        if (!connectionSource) {
-                            connectionSource = node;
-                            nodeElement.classList.add('selected');
-                        } else {
-                            if (connectionSource.id !== node.id) {
-                                createConnection(connectionSource.id, node.id);
-                            }
-                            connectionSource = null;
-                            isConnectionMode = false;
-                            connectButton.classList.remove('active');
-                            mindmap.classList.remove('connection-mode');
-                        }
-                    } else {
-                        selectNode(node);
-                    }
-                });
-                
-                nodeElement.addEventListener('dblclick', (e) => {
-                    e.stopPropagation();
-                    editNode(node);
-                });
-                
-                // Make nodes draggable
-                makeDraggable(nodeElement, node);
-                
-                mindmap.appendChild(nodeElement);
-            });
-        }
-
-        function drawConnection(sourceNode, targetNode) {
-            const line = document.createElement('div');
-            line.className = 'connection';
-            
-            const startX = sourceNode.x * scale + offsetX + (sourceNode.width * scale) / 2;
-            const startY = sourceNode.y * scale + offsetY + (sourceNode.height * scale) / 2;
-            const endX = targetNode.x * scale + offsetX + (targetNode.width * scale) / 2;
-            const endY = targetNode.y * scale + offsetY + (targetNode.height * scale) / 2;
-            
-            // Calculate length and angle of the line
-            const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
-            const angle = Math.atan2(endY - startY, endX - startX) * 180 / Math.PI;
-            
-            // Position and style the line
-            line.style.width = length + 'px';
-            line.style.height = '2px';
-            line.style.left = startX + 'px';
-            line.style.top = startY + 'px';
-            line.style.transform = `rotate(${angle}deg)`;
-            
-            mindmap.appendChild(line);
-        }
-
-        function makeDraggable(element, node) {
-            let isDragging = false;
-            let startX, startY;
-            
-            element.addEventListener('mousedown', (e) => {
-                if (isConnectionMode) return;
-                
-                isDragging = true;
-                startX = e.clientX - offsetX - node.x * scale;
-                startY = e.clientY - offsetY - node.y * scale;
-                element.style.cursor = 'grabbing';
-                e.preventDefault();
-            });
-            
-            document.addEventListener('mousemove', (e) => {
-                if (!isDragging) return;
-                
-                node.x = (e.clientX - startX - offsetX) / scale;
-                node.y = (e.clientY - startY - offsetY) / scale;
-                renderMindmap();
-            });
-            
-            document.addEventListener('mouseup', () => {
-                isDragging = false;
-                element.style.cursor = 'pointer';
-            });
-            
-            // Touch events for mobile
-            element.addEventListener('touchstart', (e) => {
-                if (isConnectionMode) return;
-                
-                isDragging = true;
-                const touch = e.touches[0];
-                startX = touch.clientX - offsetX - node.x * scale;
-                startY = touch.clientY - offsetY - node.y * scale;
-                e.preventDefault();
-            });
-            
-            document.addEventListener('touchmove', (e) => {
-                if (!isDragging) return;
-                
-                const touch = e.touches[0];
-                node.x = (touch.clientX - startX - offsetX) / scale;
-                node.y = (touch.clientY - startY - offsetY) / scale;
-                renderMindmap();
-                e.preventDefault();
-            });
-            
-            document.addEventListener('touchend', () => {
-                isDragging = false;
-            });
-        }
-
-        function selectNode(node) {
-            selectedNode = node;
-            renderMindmap();
-        }
-
-        function editNode(node) {
-            const newContent = prompt('Edit node content:', node.content);
-            if (newContent !== null) {
-                node.content = newContent;
-                renderMindmap();
-            }
-        }
-
-        function saveMindmap() {
-            const user = auth.currentUser;
-            if (!user) {
-                alert('You must be logged in to save mindmaps');
-                return;
-            }
-            
-            if (!currentMindmapId) {
-                alert('Please create or select a mindmap first');
-                return;
-            }
-            
-            // Update current mindmap data
-            saveCurrentMindmapData();
-            
-            // Save to database
-            saveAllMindmaps();
-            alert('Mindmap saved successfully!');
-        }
-
-        function clearMindmap() {
-            if (confirm('Are you sure you want to clear the mindmap?')) {
-                nodes = [];
-                connections = [];
-                nodeIdCounter = 0;
-                connectionIdCounter = 0;
-                selectedNode = null;
-                renderMindmap();
-            }
-        }
-
-        // Zoom and pan functions
-        function zoomIn() {
-            scale *= 1.2;
-            updateMindmapTransform();
-        }
-
-        function zoomOut() {
-            scale /= 1.2;
-            updateMindmapTransform();
-        }
-
-        function resetZoom() {
-            scale = 1;
-            offsetX = 0;
-            offsetY = 0;
-            updateMindmapTransform();
-        }
-
-        function updateMindmapTransform() {
-            mindmap.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
-            zoomLevel.textContent = Math.round(scale * 100) + '%';
-            renderMindmap();
-        }
-
-        // Setup panning
-        mindmap.addEventListener('mousedown', (e) => {
-            if (e.button === 1 || (e.button === 0 && e.altKey)) { // Middle click or Alt+Left click
-                isDragging = true;
-                startX = e.clientX - offsetX;
-                startY = e.clientY - offsetY;
-                initialOffsetX = offsetX;
-                initialOffsetY = offsetY;
-                mindmap.style.cursor = 'grabbing';
-                e.preventDefault();
-            }
+    }
+    
+    // Rename a mind map
+    function renameMap(mapId) {
+      const newName = prompt('Enter a new name for this mind map:', mindMaps[mapId].name || mapId);
+      
+      if (newName && newName.trim()) {
+        const userPath = currentUser.uid === 'guest' ? 'guest_maps' : `users/${currentUser.uid}/maps`;
+        
+        database.ref(`${userPath}/${mapId}/name`).set(newName.trim())
+          .then(() => {
+            // Update local data
+            mindMaps[mapId].name = newName.trim();
+            renderMapsList();
+          })
+          .catch((error) => {
+            console.error('Error renaming map:', error);
+            alert('Failed to rename map: ' + error.message);
+          });
+      }
+    }
+    
+    // Delete a mind map
+    function deleteMap(mapId) {
+      if (!confirm('Are you sure you want to delete this mind map? This action cannot be undone.')) {
+        return;
+      }
+      
+      const userPath = currentUser.uid === 'guest' ? 'guest_maps' : `users/${currentUser.uid}/maps`;
+      
+      database.ref(`${userPath}/${mapId}`).remove()
+        .then(() => {
+          // Remove from local data
+          delete mindMaps[mapId];
+          
+          // If we're currently viewing the deleted map, switch to default
+          if (currentMapId === mapId) {
+            currentMapId = 'default';
+            loadFromFirebase();
+          }
+          
+          renderMapsList();
+        })
+        .catch((error) => {
+          console.error('Error deleting map:', error);
+          alert('Failed to delete map: ' + error.message);
         });
-
-        document.addEventListener('mousemove', (e) => {
-            if (isDragging) {
-                offsetX = e.clientX - startX;
-                offsetY = e.clientY - startY;
-                updateMindmapTransform();
-            }
+    }
+    
+    // Show the mind map manager UI
+    function showMapManager() {
+      loadMindMapsList();
+      document.getElementById('map-manager-container').style.display = 'flex';
+    }
+    
+    // Hide the mind map manager UI
+    function hideMapManager() {
+      document.getElementById('map-manager-container').style.display = 'none';
+    }
+    
+    // Load data into the application
+    function loadData(data) {
+      // Clear existing nodes and edges
+      world.querySelectorAll('.node').forEach(n => n.remove());
+      edgesSVG.innerHTML = '';
+      nodes = {};
+      edges = data.edges || [];
+      idCounter = data.idCounter || 1;
+      
+      // Create nodes
+      if (data.nodes && data.nodes.length > 0) {
+        data.nodes.forEach(node => {
+          createNodeElement(node);
+          nodes[node.id] = node;
         });
-
-        document.addEventListener('mouseup', () => {
-            isDragging = false;
-            mindmap.style.cursor = 'default';
+      } else {
+        // If no nodes, create a default one
+        addNode(500, 500, 'Main Topic');
+      }
+      
+      // Draw edges
+      drawEdges();
+      
+      // Clear selection
+      clearSelection();
+    }
+    
+    // Create a node element from node data
+    function createNodeElement(node) {
+      const nodeElement = document.createElement('div');
+      nodeElement.className = 'node';
+      nodeElement.dataset.id = node.id;
+      nodeElement.style.left = node.x + 'px';
+      nodeElement.style.top = node.y + 'px';
+      nodeElement.style.backgroundColor = node.color || '#333';
+      nodeElement.style.borderColor = node.borderColor || '#666';
+      
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'node-content';
+      contentDiv.textContent = node.text;
+      
+      nodeElement.appendChild(contentDiv);
+      world.appendChild(nodeElement);
+      
+      // Add event listeners
+      setupNodeEventListeners(nodeElement);
+      
+      return nodeElement;
+    }
+    
+    // Set up event listeners for a node
+    function setupNodeEventListeners(nodeElement) {
+      // Mouse events
+      nodeElement.addEventListener('mousedown', handleNodeMouseDown);
+      
+      // Touch events
+      nodeElement.addEventListener('touchstart', handleNodeTouchStart, { passive: false });
+      nodeElement.addEventListener('touchmove', handleNodeTouchMove, { passive: false });
+      nodeElement.addEventListener('touchend', handleNodeTouchEnd);
+      nodeElement.addEventListener('touchcancel', handleNodeTouchEnd);
+      
+      // Click to select
+      nodeElement.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        if (isLongPress) {
+          isLongPress = false;
+          return;
+        }
+        
+        const nodeId = nodeElement.dataset.id;
+        
+        if (connectMode) {
+          if (!connectFrom) {
+            connectFrom = nodeId;
+            nodeElement.classList.add('selected');
+          } else if (connectFrom !== nodeId) {
+            addEdge(connectFrom, nodeId);
+            connectMode = false;
+            document.getElementById('connectBtn').classList.remove('active');
+            clearSelection();
+            saveToFirebase(); // Auto-save after adding connection
+          }
+        } else if (editMode) {
+          selectNode(nodeId);
+          showEditPanel(nodes[nodeId]);
+        } else {
+          selectNode(nodeId);
+        }
+      });
+      
+      // Long press for mobile context menu
+      nodeElement.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          longPressTimer = setTimeout(() => {
+            isLongPress = true;
+            const nodeId = nodeElement.dataset.id;
+            selectNode(nodeId);
+            showContextMenu(e.touches[0].clientX, e.touches[0].clientY, nodes[nodeId]);
+            e.preventDefault();
+          }, 500);
+        }
+      });
+      
+      nodeElement.addEventListener('touchend', () => {
+        clearTimeout(longPressTimer);
+      });
+      
+      nodeElement.addEventListener('touchmove', () => {
+        clearTimeout(longPressTimer);
+      });
+    }
+    
+    // Add a new node
+    function addNode(x, y, text) {
+      const id = idCounter++;
+      const node = {
+        id: id,
+        x: x,
+        y: y,
+        text: text || 'New Node',
+        color: '#333',
+        borderColor: '#666'
+      };
+      
+      nodes[id] = node;
+      createNodeElement(node);
+      
+      return node;
+    }
+    
+    // Add an edge between two nodes
+    function addEdge(fromId, toId) {
+      // Check if edge already exists
+      if (edges.some(edge => edge.from === fromId && edge.to === toId)) {
+        return;
+      }
+      
+      edges.push({ from: fromId, to: toId });
+      drawEdges();
+    }
+    
+    // Draw all edges
+    function drawEdges() {
+      edgesSVG.innerHTML = '';
+      
+      edges.forEach(edge => {
+        const fromNode = nodes[edge.from];
+        const toNode = nodes[edge.to];
+        
+        if (fromNode && toNode) {
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('class', 'connection');
+          line.setAttribute('x1', fromNode.x + 65);
+          line.setAttribute('y1', fromNode.y + 20);
+          line.setAttribute('x2', toNode.x + 65);
+          line.setAttribute('y2', toNode.y + 20);
+          line.setAttribute('data-from', fromNode.id);
+          line.setAttribute('data-to', toNode.id);
+          
+          edgesSVG.appendChild(line);
+        }
+      });
+    }
+    
+    // Select a node
+    function selectNode(nodeId) {
+      clearSelection();
+      
+      const nodeElement = document.querySelector(`.node[data-id="${nodeId}"]`);
+      if (nodeElement) {
+        nodeElement.classList.add('selected');
+        selectedNode = nodes[nodeId];
+        
+        // Highlight connected edges
+        document.querySelectorAll(`line[data-from="${nodeId}"], line[data-to="${nodeId}"]`).forEach(line => {
+          line.classList.add('highlight');
         });
-
-        // Zoom with mouse wheel
-        mindmap.addEventListener('wheel', (e) => {
-            if (e.ctrlKey) {
-                e.preventDefault();
-                const rect = mindmap.getBoundingClientRect();
-                const mouseX = e.clientX - rect.left;
-                const mouseY = e.clientY - rect.top;
-                
-                const zoomIntensity = 0.1;
-                const wheel = e.deltaY < 0 ? 1 : -1;
-                const zoom = Math.exp(wheel * zoomIntensity);
-                
-                // Calculate the mouse position in the current coordinate system
-                const worldMouseX = (mouseX - offsetX) / scale;
-                const worldMouseY = (mouseY - offsetY) / scale;
-                
-                // Apply zoom
-                scale *= zoom;
-                
-                // Adjust offset so the point under the mouse stays fixed
-                offsetX = mouseX - worldMouseX * scale;
-                offsetY = mouseY - worldMouseY * scale;
-                
-                updateMindmapTransform();
-            }
+      }
+    }
+    
+    // Clear selection
+    function clearSelection() {
+      document.querySelectorAll('.node.selected').forEach(node => {
+        node.classList.remove('selected');
+      });
+      
+      document.querySelectorAll('.connection.highlight').forEach(line => {
+        line.classList.remove('highlight');
+      });
+      
+      selectedNode = null;
+      connectFrom = null;
+    }
+    
+    // Delete selected node or edge
+    function deleteSelected() {
+      if (selectedNode) {
+        // Delete the node and its connections
+        const nodeId = selectedNode.id;
+        
+        // Remove node from DOM
+        const nodeElement = document.querySelector(`.node[data-id="${nodeId}"]`);
+        if (nodeElement) {
+          nodeElement.remove();
+        }
+        
+        // Remove node from data
+        delete nodes[nodeId];
+        
+        // Remove any edges connected to this node
+        edges = edges.filter(edge => edge.from !== nodeId && edge.to !== nodeId);
+        
+        // Redraw edges
+        drawEdges();
+        
+        // Clear selection
+        clearSelection();
+      }
+    }
+    
+    // Show edit panel for a node
+    function showEditPanel(node) {
+      const editPanel = document.getElementById('edit-panel');
+      const editTextarea = document.getElementById('edit-textarea');
+      const overlay = document.getElementById('overlay');
+      
+      editTextarea.value = node.text;
+      editPanel.style.display = 'block';
+      overlay.style.display = 'block';
+      
+      // Store which node we're editing
+      editPanel.dataset.editingNode = node.id;
+    }
+    
+    // Close edit panel
+    function closeEditPanel() {
+      document.getElementById('edit-panel').style.display = 'none';
+      document.getElementById('overlay').style.display = 'none';
+    }
+    
+    // Save changes from edit panel
+    function saveEditPanel() {
+      const editPanel = document.getElementById('edit-panel');
+      const editTextarea = document.getElementById('edit-textarea');
+      const nodeId = editPanel.dataset.editingNode;
+      
+      if (nodeId && nodes[nodeId]) {
+        // Update the node text in the data model
+        nodes[nodeId].text = editTextarea.value;
+        
+        // Update the node text in the DOM
+        const nodeElement = document.querySelector(`.node[data-id="${nodeId}"] .node-content`);
+        if (nodeElement) {
+          nodeElement.textContent = editTextarea.value;
+        }
+      }
+      
+      closeEditPanel();
+    }
+    
+    // Show color menu
+    function showColorMenu() {
+      if (!selectedNode) return;
+      
+      const colors = [
+        '#2c3e50', '#34495e', '#16a085', '#27ae60', '#2980b9',
+        '#8e44ad', '#2c3e50', '#f39c12', '#d35400', '#c0392b',
+        '#7f8c8d', '#1abc9c', '#3498db', '#9b59b6', '#e74c3c'
+      ];
+      
+      // Create color picker menu
+      hideContextMenu();
+      const menu = document.createElement('div');
+      menu.className = 'context-menu';
+      menu.innerHTML = '<div style="padding: 10px; font-weight: bold;">Choose Color</div>';
+      
+      const colorGrid = document.createElement('div');
+      colorGrid.className = 'color-picker';
+      
+      colors.forEach(color => {
+        const colorOption = document.createElement('div');
+        colorOption.className = 'color-option';
+        colorOption.style.backgroundColor = color;
+        colorOption.onclick = () => {
+          changeNodeColor(selectedNode.id, color);
+          hideContextMenu();
+          saveToFirebase(); // Auto-save after color change
+        };
+        colorGrid.appendChild(colorOption);
+      });
+      
+      menu.appendChild(colorGrid);
+      document.body.appendChild(menu);
+      
+      // Position menu near selected node
+      const nodeElement = document.querySelector(`.node[data-id="${selectedNode.id}"]`);
+      if (nodeElement) {
+        const rect = nodeElement.getBoundingClientRect();
+        menu.style.left = rect.right + 10 + 'px';
+        menu.style.top = rect.top + 'px';
+      }
+    }
+    
+    // Change node color
+    function changeNodeColor(nodeId, color) {
+      if (nodes[nodeId]) {
+        nodes[nodeId].color = color;
+        const nodeElement = document.querySelector(`.node[data-id="${nodeId}"]`);
+        if (nodeElement) {
+          nodeElement.style.backgroundColor = color;
+        }
+      }
+    }
+    
+    // Export data as JSON
+    function exportData() {
+      const data = {
+        nodes: Object.values(nodes),
+        edges: edges,
+        idCounter: idCounter
+      };
+      
+      const dataStr = JSON.stringify(data, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      
+      const exportFileDefaultName = 'mindmap.json';
+      
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+    }
+    
+    // Create import input if it doesn't exist
+    function createImportInput() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.id = 'importInput';
+      input.accept = '.json';
+      input.style.display = 'none';
+      input.onchange = handleImport;
+      document.body.appendChild(input);
+      input.click();
+    }
+    
+    // Handle imported file
+    function handleImport(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          loadData(data);
+          saveToFirebase(); // Save imported data to Firebase
+        } catch (error) {
+          alert('Error parsing JSON file: ' + error.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+    
+    // Apply layout to nodes
+    function applyLayout(type) {
+      const centerX = 500;
+      const centerY = 500;
+      const nodeValues = Object.values(nodes);
+      
+      if (type === 'horizontal') {
+        // Simple horizontal layout with root in center
+        const root = nodeValues[0] || addNode(centerX, centerY, 'Main Topic');
+        root.x = centerX;
+        root.y = centerY;
+        
+        let xOffset = 200;
+        nodeValues.forEach((node, i) => {
+          if (node.id !== root.id) {
+            node.x = centerX + xOffset;
+            node.y = centerY + (i % 2 === 0 ? -100 : 100);
+            xOffset += 200;
+          }
         });
-
-        // Touch events for mobile zoom and pan
-        let touchStartDistance = null;
-        let touchStartScale = null;
-        let touchStartOffsetX = null;
-        let touchStartOffsetY = null;
-
-        mindmap.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 2) {
-                // Two-finger touch for zooming
-                e.preventDefault();
-                const touch1 = e.touches[0];
-                const touch2 = e.touches[1];
-                touchStartDistance = Math.hypot(
-                    touch2.clientX - touch1.clientX,
-                    touch2.clientY - touch1.clientY
-                );
-                touchStartScale = scale;
-                touchStartOffsetX = offsetX;
-                touchStartOffsetY = offsetY;
-            } else if (e.touches.length === 1 && !isConnectionMode) {
-                // One-finger touch for panning
-                isDragging = true;
-                const touch = e.touches[0];
-                startX = touch.clientX - offsetX;
-                startY = touch.clientY - offsetY;
-                initialOffsetX = offsetX;
-                initialOffsetY = offsetY;
-            }
+      } else if (type === 'vertical') {
+        // Simple vertical layout with root in center
+        const root = nodeValues[0] || addNode(centerX, centerY, 'Main Topic');
+        root.x = centerX;
+        root.y = centerY;
+        
+        let yOffset = 100;
+        nodeValues.forEach((node, i) => {
+          if (node.id !== root.id) {
+            node.x = centerX + (i % 2 === 0 ? -150 : 150);
+            node.y = centerY + yOffset;
+            yOffset += 100;
+          }
         });
-
-        mindmap.addEventListener('touchmove', (e) => {
-            if (e.touches.length === 2) {
-                // Two-finger pinch zoom
-                e.preventDefault();
-                const touch1 = e.touches[0];
-                const touch2 = e.touches[1];
-                const currentDistance = Math.hypot(
-                    touch2.clientX - touch1.clientX,
-                    touch2.clientY - touch1.clientY
-                );
-                
-                if (touchStartDistance) {
-                    const zoom = currentDistance / touchStartDistance;
-                    scale = touchStartScale * zoom;
-                    
-                    // Calculate center point between the two fingers
-                    const centerX = (touch1.clientX + touch2.clientX) / 2;
-                    const centerY = (touch1.clientY + touch2.clientY) / 2;
-                    
-                    // Adjust offset to zoom toward the center point
-                    const rect = mindmap.getBoundingClientRect();
-                    const worldCenterX = (centerX - rect.left - touchStartOffsetX) / touchStartScale;
-                    const worldCenterY = (centerY - rect.top - touchStartOffsetY) / touchStartScale;
-                    
-                    offsetX = centerX - rect.left - worldCenterX * scale;
-                    offsetY = centerY - rect.top - worldCenterY * scale;
-                    
-                    updateMindmapTransform();
-                }
-            } else if (e.touches.length === 1 && isDragging) {
-                // One-finger pan
-                const touch = e.touches[0];
-                offsetX = touch.clientX - startX;
-                offsetY = touch.clientY - startY;
-                updateMindmapTransform();
-            }
+      } else if (type === 'radial') {
+        // Simple radial layout
+        const root = nodeValues[0] || addNode(centerX, centerY, 'Main Topic');
+        root.x = centerX;
+        root.y = centerY;
+        
+        const radius = 200;
+        const angleStep = (2 * Math.PI) / (nodeValues.length - 1);
+        
+        let angle = 0;
+        nodeValues.forEach(node => {
+          if (node.id !== root.id) {
+            node.x = centerX + radius * Math.cos(angle);
+            node.y = centerY + radius * Math.sin(angle);
+            angle += angleStep;
+          }
         });
-
-        mindmap.addEventListener('touchend', () => {
-            isDragging = false;
-            touchStartDistance = null;
+      }
+      
+      // Update node positions in DOM
+      nodeValues.forEach(node => {
+        const nodeElement = document.querySelector(`.node[data-id="${node.id}"]`);
+        if (nodeElement) {
+          nodeElement.style.left = node.x + 'px';
+          nodeElement.style.top = node.y + 'px';
+        }
+      });
+      
+      // Redraw edges
+      drawEdges();
+    }
+    
+    // Search nodes
+    function searchNodes(query) {
+      clearSelection();
+      
+      if (!query) {
+        // Reset all nodes if search is empty
+        Object.values(nodes).forEach(node => {
+          const nodeElement = document.querySelector(`.node[data-id="${node.id}"]`);
+          if (nodeElement) {
+            nodeElement.style.opacity = 1;
+          }
         });
+        return;
+      }
+      
+      const lowerQuery = query.toLowerCase();
+      
+      Object.values(nodes).forEach(node => {
+        const nodeElement = document.querySelector(`.node[data-id="${node.id}"]`);
+        if (nodeElement) {
+          if (node.text.toLowerCase().includes(lowerQuery)) {
+            nodeElement.style.opacity = 1;
+          } else {
+            nodeElement.style.opacity = 0.3;
+          }
+        }
+      });
+    }
+    
+    // Adjust zoom level
+    function adjustZoom(delta) {
+  scale += delta;
+  scale = Math.max(0.1, Math.min(5, scale));
 
-        // Initialize the app
-        window.addEventListener('load', () => {
-            // Add a central node if no mindmap is loaded after a short delay
-            setTimeout(() => {
-                if (nodes.length === 0 && !currentMindmapId) {
-                    addCentralNode();
-                }
-            }, 1000);
-        });
-    </script>
+  const rect = world.getBoundingClientRect();
+  const centerX = window.innerWidth / 2 - rect.left;
+  const centerY = window.innerHeight / 2 - rect.top;
+
+  world.style.transformOrigin = `${centerX}px ${centerY}px`;
+  world.style.transform = `scale(${scale})`;
+
+  updateZoomDisplay();
+}
+
+    
+    // Update zoom display
+    function updateZoomDisplay() {
+      document.getElementById('zoom-display').textContent = Math.round(scale * 100) + '%';
+    }
+    
+    // Reset view
+    function resetView() {
+      scale = 1;
+      world.style.transform = 'scale(1)';
+      world.style.left = '0px';
+      world.style.top = '0px';
+      updateZoomDisplay();
+    }
+    
+    // Handle mouse wheel for zooming
+    function handleWheel(e) {
+      e.preventDefault();
+      
+      if (e.ctrlKey) {
+        // Zoom with Ctrl+Wheel
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        adjustZoom(delta);
+      } else {
+        // Pan with regular wheel
+        world.scrollLeft -= e.deltaX;
+        world.scrollTop -= e.deltaY;
+      }
+    }
+    
+    // Start panning
+    function startPan(e) {
+      if (e.button !== 1 && !e.touches) return; // Only middle mouse button or touch
+      
+      panning = true;
+      startX = e.clientX || e.touches[0].clientX;
+      startY = e.clientY || e.touches[0].clientY;
+      lastX = world.scrollLeft;
+      lastY = world.scrollTop;
+      
+      e.preventDefault();
+    }
+    
+    // Handle panning
+    function handlePan(e) {
+      if (!panning) return;
+      
+      const x = e.clientX || (e.touches && e.touches[0].clientX);
+      const y = e.clientY || (e.touches && e.touches[0].clientY);
+      
+      if (x === undefined || y === undefined) return;
+      
+      const dx = x - startX;
+      const dy = y - startY;
+      
+      world.scrollLeft = lastX - dx;
+      world.scrollTop = lastY - dy;
+      
+      e.preventDefault();
+    }
+    
+    // Stop panning
+    function stopPan() {
+      panning = false;
+    }
+    
+    // Set up touch events
+    function setupTouchEvents() {
+      world.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+          // Pinch to zoom
+          initialPinchDistance = getDistance(
+            e.touches[0].clientX, e.touches[0].clientY,
+            e.touches[1].clientX, e.touches[1].clientY
+          );
+          e.preventDefault();
+        } else if (e.touches.length === 1) {
+          startPan(e);
+        }
+      }, { passive: false });
+      
+      world.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2) {
+          // Handle pinch zoom
+          const currentDistance = getDistance(
+            e.touches[0].clientX, e.touches[0].clientY,
+            e.touches[1].clientX, e.touches[1].clientY
+          );
+          
+          if (initialPinchDistance !== null) {
+            const delta = (currentDistance - initialPinchDistance) / 100;
+            adjustZoom(delta * 0.1);
+            initialPinchDistance = currentDistance;
+          }
+          
+          e.preventDefault();
+        } else if (e.touches.length === 1 && panning) {
+          handlePan(e);
+        }
+      }, { passive: false });
+      
+      world.addEventListener('touchend', () => {
+        initialPinchDistance = null;
+        stopPan();
+      });
+    }
+    
+    // Calculate distance between two points
+    function getDistance(x1, y1, x2, y2) {
+      return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+    }
+    
+    // Handle node mouse down for dragging
+    function handleNodeMouseDown(e) {
+      if (e.button !== 0) return; // Only left mouse button
+      
+      const nodeElement = e.target.closest('.node');
+      if (!nodeElement) return;
+      
+      const nodeId = nodeElement.dataset.id;
+      const node = nodes[nodeId];
+      if (!node) return;
+      
+      // Select the node
+      selectNode(nodeId);
+      
+      // Start dragging
+      isDraggingNode = true;
+      const offsetX = e.clientX - node.x;
+      const offsetY = e.clientY - node.y;
+      
+      function handleMouseMove(e) {
+        node.x = e.clientX - offsetX;
+        node.y = e.clientY - offsetY;
+        nodeElement.style.left = node.x + 'px';
+        nodeElement.style.top = node.y + 'px';
+        
+        // Update edges
+        drawEdges();
+      }
+      
+      function handleMouseUp() {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        isDraggingNode = false;
+      }
+      
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      
+      e.preventDefault();
+    }
+    
+    // Handle node touch start for dragging on mobile
+    function handleNodeTouchStart(e) {
+      if (e.touches.length !== 1) return;
+      
+      const nodeElement = e.target.closest('.node');
+      if (!nodeElement) return;
+      
+      const nodeId = nodeElement.dataset.id;
+      const node = nodes[nodeId];
+      if (!node) return;
+      
+      // Select the node
+      selectNode(nodeId);
+      
+      // Start dragging
+      isDraggingNode = true;
+      const touch = e.touches[0];
+      initialTouchPositions = {
+        touchX: touch.clientX,
+        touchY: touch.clientY,
+        nodeX: node.x,
+        nodeY: node.y
+      };
+      
+      e.preventDefault();
+    }
+    
+    // Handle node touch move for dragging on mobile
+    function handleNodeTouchMove(e) {
+      if (!initialTouchPositions || e.touches.length !== 1) return;
+      
+      const nodeElement = e.target.closest('.node');
+      if (!nodeElement) return;
+      
+      const nodeId = nodeElement.dataset.id;
+      const node = nodes[nodeId];
+      if (!node) return;
+      
+      const touch = e.touches[0];
+      const dx = touch.clientX - initialTouchPositions.touchX;
+      const dy = touch.clientY - initialTouchPositions.touchY;
+      
+      node.x = initialTouchPositions.nodeX + dx;
+      node.y = initialTouchPositions.nodeY + dy;
+      nodeElement.style.left = node.x + 'px';
+      nodeElement.style.top = node.y + 'px';
+      
+      // Update edges
+      drawEdges();
+      
+      e.preventDefault();
+    }
+    
+    // Handle node touch end for dragging on mobile
+    function handleNodeTouchEnd() {
+      initialTouchPositions = null;
+      isDraggingNode = false;
+    }
+    
+    // Handle context menu
+    function handleContextMenu(e) {
+      e.preventDefault();
+      
+      const node = e.target.closest('.node');
+      if (node) {
+        const nodeId = node.dataset.id;
+        selectNode(nodeId);
+        showContextMenu(e.clientX, e.clientY, nodes[nodeId]);
+      } else {
+        hideContextMenu();
+      }
+    }
+    
+    // Show context menu
+    function showContextMenu(x, y, node) {
+      hideContextMenu();
+      
+      const menu = document.createElement('div');
+      menu.className = 'context-menu';
+      
+      const menuItems = [
+        { text: 'Edit', action: () => showEditPanel(node) },
+        { text: 'Change Color', action: () => showColorMenu() },
+        { text: 'Delete', action: () => { deleteSelected(); saveToFirebase(); } },
+        { text: 'Add Child Node', action: () => {
+          const childX = node.x + 200;
+          const childY = node.y;
+          const childNode = addNode(childX, childY, 'Child Node');
+          addEdge(node.id, childNode.id);
+          saveToFirebase(); // Auto-save after adding child
+        }},
+      ];
+      
+      menuItems.forEach(item => {
+        const menuItem = document.createElement('div');
+        menuItem.className = 'context-menu-item';
+        menuItem.textContent = item.text;
+        menuItem.onclick = item.action;
+        menu.appendChild(menuItem);
+      });
+      
+      document.body.appendChild(menu);
+      
+      // Position menu
+      menu.style.left = x + 'px';
+      menu.style.top = y + 'px';
+    }
+    
+    // Hide context menu
+    function hideContextMenu() {
+      const menu = document.querySelector('.context-menu');
+      if (menu) {
+        menu.remove();
+      }
+    }
+    
+    // Initialize the app
+    init();
+  </script>
 </body>
 </html>
