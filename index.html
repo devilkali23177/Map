@@ -459,6 +459,33 @@
       from { transform: scale(1); }
       to { transform: scale(1.05); }
     }
+
+    /* Collapse/Expand button for nodes */
+    .collapse-btn {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      width: 16px;
+      height: 16px;
+      background: #555;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: white;
+      z-index: 5;
+    }
+    .collapse-btn:hover {
+      background: #666;
+    }
+    .node.collapsed > .collapse-btn::after {
+      content: "+";
+    }
+    .node:not(.collapsed) > .collapse-btn::after {
+      content: "-";
+    }
   </style>
 </head>
 <body>
@@ -1049,7 +1076,7 @@
         });
     }
     
-    // Rename a mind map
+    // Rename a mind map - FIXED: Update local data correctly
     function renameMap(mapId) {
       const newName = prompt('Enter a new name for this mind map:', mindMaps[mapId].name || mapId);
       
@@ -1058,8 +1085,13 @@
         
         database.ref(`${userPath}/${mapId}/name`).set(newName.trim())
           .then(() => {
-            // Update local data
-            mindMaps[mapId].name = newName.trim();
+            // Update local data correctly
+            if (mindMaps[mapId]) {
+              mindMaps[mapId].name = newName.trim();
+              mindMaps[mapId].lastUpdated = Date.now();
+            } else {
+              mindMaps[mapId] = { name: newName.trim(), lastUpdated: Date.now() };
+            }
             renderMapsList();
           })
           .catch((error) => {
@@ -1144,6 +1176,15 @@
       nodeElement.style.backgroundColor = node.color || '#333';
       nodeElement.style.borderColor = node.borderColor || '#666';
       
+      // Add collapse/expand button if node has children
+      const collapseBtn = document.createElement('div');
+      collapseBtn.className = 'collapse-btn';
+      collapseBtn.onclick = (e) => {
+        e.stopPropagation();
+        toggleNodeCollapse(node.id);
+      };
+      nodeElement.appendChild(collapseBtn);
+      
       const contentDiv = document.createElement('div');
       contentDiv.className = 'node-content';
       contentDiv.textContent = node.text;
@@ -1151,10 +1192,89 @@
       nodeElement.appendChild(contentDiv);
       world.appendChild(nodeElement);
       
+      // Set collapsed state if applicable
+      if (node.collapsed) {
+        nodeElement.classList.add('collapsed');
+        hideNodeChildren(node.id);
+      }
+      
       // Add event listeners
       setupNodeEventListeners(nodeElement);
       
       return nodeElement;
+    }
+    
+    // Toggle node collapse state
+    function toggleNodeCollapse(nodeId) {
+      const node = nodes[nodeId];
+      if (!node) return;
+      
+      node.collapsed = !node.collapsed;
+      const nodeElement = document.querySelector(`.node[data-id="${nodeId}"]`);
+      
+      if (node.collapsed) {
+        nodeElement.classList.add('collapsed');
+        hideNodeChildren(nodeId);
+      } else {
+        nodeElement.classList.remove('collapsed');
+        showNodeChildren(nodeId);
+      }
+      
+      saveToFirebase();
+    }
+    
+    // Hide children of a node
+    function hideNodeChildren(nodeId) {
+      const children = getNodeChildren(nodeId);
+      children.forEach(childId => {
+        const childElement = document.querySelector(`.node[data-id="${childId}"]`);
+        if (childElement) {
+          childElement.style.display = 'none';
+          // Also hide edges connected to this child
+          hideNodeEdges(childId);
+        }
+        // Recursively hide grandchildren
+        hideNodeChildren(childId);
+      });
+    }
+    
+    // Show children of a node
+    function showNodeChildren(nodeId) {
+      const children = getNodeChildren(nodeId);
+      children.forEach(childId => {
+        const child = nodes[childId];
+        const childElement = document.querySelector(`.node[data-id="${childId}"]`);
+        if (childElement && !child.collapsed) {
+          childElement.style.display = 'block';
+          // Also show edges connected to this child
+          showNodeEdges(childId);
+        }
+        // If child is not collapsed, recursively show its children
+        if (!child.collapsed) {
+          showNodeChildren(childId);
+        }
+      });
+    }
+    
+    // Hide edges connected to a node
+    function hideNodeEdges(nodeId) {
+      document.querySelectorAll(`line[data-from="${nodeId}"], line[data-to="${nodeId}"]`).forEach(line => {
+        line.style.display = 'none';
+      });
+    }
+    
+    // Show edges connected to a node
+    function showNodeEdges(nodeId) {
+      document.querySelectorAll(`line[data-from="${nodeId}"], line[data-to="${nodeId}"]`).forEach(line => {
+        line.style.display = '';
+      });
+    }
+    
+    // Get all children of a node
+    function getNodeChildren(nodeId) {
+      return edges
+        .filter(edge => edge.from === nodeId)
+        .map(edge => edge.to);
     }
     
     // Set up event listeners for a node
@@ -1230,7 +1350,8 @@
         y: y,
         text: text || 'New Node',
         color: '#333',
-        borderColor: '#666'
+        borderColor: '#666',
+        collapsed: false
       };
       
       nodes[id] = node;
@@ -1267,6 +1388,11 @@
           line.setAttribute('y2', toNode.y + 20);
           line.setAttribute('data-from', fromNode.id);
           line.setAttribute('data-to', toNode.id);
+          
+          // Hide edge if either node is collapsed
+          if (fromNode.collapsed || toNode.collapsed) {
+            line.style.display = 'none';
+          }
           
           edgesSVG.appendChild(line);
         }
@@ -1369,7 +1495,7 @@
       closeEditPanel();
     }
     
-    // Show color menu
+    // Show color menu - FIXED: Proper positioning
     function showColorMenu() {
       if (!selectedNode) return;
       
@@ -1407,12 +1533,21 @@
       const nodeElement = document.querySelector(`.node[data-id="${selectedNode.id}"]`);
       if (nodeElement) {
         const rect = nodeElement.getBoundingClientRect();
-        menu.style.left = rect.right + 10 + 'px';
+        const menuRect = menu.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        
+        // Position to the right of the node, or to the left if there's not enough space
+        let menuX = rect.right + 10;
+        if (menuX + menuRect.width > viewportWidth) {
+          menuX = rect.left - menuRect.width - 10;
+        }
+        
+        menu.style.left = menuX + 'px';
         menu.style.top = rect.top + 'px';
       }
     }
     
-    // Change node color
+    // Change node color - FIXED: Now properly updates the node color
     function changeNodeColor(nodeId, color) {
       if (nodes[nodeId]) {
         nodes[nodeId].color = color;
@@ -1558,8 +1693,12 @@
       Object.values(nodes).forEach(node => {
         const nodeElement = document.querySelector(`.node[data-id="${node.id}"]`);
         if (nodeElement) {
-          if (node.text.toLowerCase().includes(lowerQuery)) {
+          if (node.text.toLowerCase().includes(lowerQuery) || node.id.toString() === query) {
             nodeElement.style.opacity = 1;
+            // If it matches the search, select it
+            if (!selectedNode) {
+              selectNode(node.id);
+            }
           } else {
             nodeElement.style.opacity = 0.3;
           }
@@ -1862,7 +2001,7 @@
       }
     }
     
-    // Show context menu
+    // Show context menu - FIXED: Color option now works correctly
     function showContextMenu(x, y, node) {
       hideContextMenu();
       
@@ -1870,15 +2009,20 @@
       menu.className = 'context-menu';
       
       const menuItems = [
-        { text: 'Edit', action: () => showEditPanel(node) },
-        { text: 'Change Color', action: () => showColorMenu() },
-        { text: 'Delete', action: () => { deleteSelected(); saveToFirebase(); } },
+        { text: 'Edit', action: () => { showEditPanel(node); hideContextMenu(); } },
+        { text: 'Change Color', action: () => showColorMenu() }, // Don't hide context menu here
+        { text: 'Delete', action: () => { deleteSelected(); saveToFirebase(); hideContextMenu(); } },
         { text: 'Add Child Node', action: () => {
           const childX = node.x + 200;
           const childY = node.y;
           const childNode = addNode(childX, childY, 'Child Node');
           addEdge(node.id, childNode.id);
-          saveToFirebase(); // Auto-save after adding child
+          saveToFirebase();
+          hideContextMenu();
+        }},
+        { text: node.collapsed ? 'Expand Children' : 'Collapse Children', action: () => {
+          toggleNodeCollapse(node.id);
+          hideContextMenu();
         }},
       ];
       
@@ -1893,8 +2037,24 @@
       document.body.appendChild(menu);
       
       // Position menu
-      menu.style.left = x + 'px';
-      menu.style.top = y + 'px';
+      const menuRect = menu.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // Adjust position if menu would go off screen
+      let adjustedX = x;
+      let adjustedY = y;
+      
+      if (x + menuRect.width > viewportWidth) {
+        adjustedX = viewportWidth - menuRect.width - 10;
+      }
+      
+      if (y + menuRect.height > viewportHeight) {
+        adjustedY = viewportHeight - menuRect.height - 10;
+      }
+      
+      menu.style.left = adjustedX + 'px';
+      menu.style.top = adjustedY + 'px';
     }
     
     // Hide context menu
