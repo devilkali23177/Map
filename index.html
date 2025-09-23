@@ -3,11 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Advanced Mind Map with Firebase Integration</title>
+  <title>Advanced Mind Map with Image Support</title>
   <!-- Add Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
   <style>
     /* CSS Variables for Theming */
     :root {
@@ -249,6 +250,25 @@
       min-height: 24px;
       word-wrap: break-word;
     }
+    .node-image {
+      max-width: 100%;
+      max-height: 150px;
+      margin-top: 8px;
+      border-radius: 4px;
+      display: block;
+    }
+    .node-image-placeholder {
+      width: 100%;
+      height: 60px;
+      background-color: rgba(0,0,0,0.2);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 8px;
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
     svg { 
       position: absolute; 
       inset: 0; 
@@ -388,6 +408,90 @@
       background: rgba(0, 0, 0, 0.7);
       z-index: 90;
       display: none;
+    }
+    
+    /* Image Panel */
+    #image-panel {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--edit-panel-bg);
+      border: 2px solid var(--accent-color);
+      border-radius: 8px;
+      padding: 20px;
+      z-index: 100;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+      width: 400px;
+      display: none;
+      transition: background-color 0.3s ease;
+    }
+    #image-panel h3 {
+      margin-top: 0;
+      color: var(--accent-color);
+      border-bottom: 1px solid var(--node-border);
+      padding-bottom: 10px;
+      font-size: 18px;
+    }
+    #image-url-input {
+      width: 100%;
+      padding: 10px;
+      background: var(--node-bg);
+      color: var(--node-text);
+      border: 1px solid var(--node-border);
+      border-radius: 4px;
+      margin-bottom: 15px;
+      font-family: inherit;
+      font-size: 16px;
+    }
+    #image-upload-area {
+      border: 2px dashed var(--node-border);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 15px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    #image-upload-area:hover {
+      background: rgba(255,255,255,0.05);
+    }
+    #image-upload-area p {
+      margin: 0;
+      color: var(--text-secondary);
+    }
+    #image-preview {
+      max-width: 100%;
+      max-height: 200px;
+      margin: 15px auto;
+      display: none;
+      border-radius: 4px;
+    }
+    #image-panel-buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    #image-panel button {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      min-width: 80px;
+    }
+    #image-panel-save {
+      background: var(--toolbar-button-active);
+      color: var(--text-primary);
+    }
+    #image-panel-cancel {
+      background: var(--toolbar-button-bg);
+      color: var(--text-primary);
+    }
+    #image-panel-remove {
+      background: #e74c3c;
+      color: var(--text-primary);
+      margin-right: auto;
     }
     
     /* Firebase auth UI */
@@ -725,6 +829,10 @@
         right: 6px;
         top: 6px;
       }
+      #image-panel {
+        width: 90%;
+        max-width: 350px;
+      }
     }
     
     /* Prevent text selection on UI elements */
@@ -868,6 +976,7 @@
     <button id="resetViewBtn">Reset View</button>
     <div class="separator"></div>
     <button id="colorBtn">Color</button>
+    <button id="imageBtn">Add Image</button>
     <button id="exportBtn">Export</button>
     <button id="importBtn">Import</button>
     <div class="separator"></div>
@@ -917,23 +1026,41 @@
     </div>
   </div>
   
+  <!-- Image Panel -->
+  <div id="image-panel">
+    <h3>Add Image to Node</h3>
+    <input type="text" id="image-url-input" placeholder="Enter image URL">
+    <p>Or</p>
+    <div id="image-upload-area">
+      <p>Click to upload an image or drag & drop here</p>
+      <input type="file" id="image-file-input" accept="image/*" style="display: none;">
+    </div>
+    <img id="image-preview" alt="Image preview">
+    <div id="image-panel-buttons">
+      <button id="image-panel-remove">Remove Image</button>
+      <button id="image-panel-cancel">Cancel</button>
+      <button id="image-panel-save">Save</button>
+    </div>
+  </div>
+  
   <script>
     // Firebase configuration
     const firebaseConfig = {
-      apiKey: "AIzaSyBlQI16Nmx5oo3VzyCDEb6V4M2cH9Bbwc8",
-      authDomain: "mindmapping-58435.firebaseapp.com",
-      databaseURL: "https://mindmapping-58435-default-rtdb.firebaseio.com",
-      projectId: "mindmapping-58435",
-      storageBucket: "mindmapping-58435.firebasestorage.app",
-      messagingSenderId: "1059085761579",
-      appId: "1:1059085761579:web:5422cefb56f5989af7be6e",
-      measurementId: "G-9F7EZZ2C9T"
+      apiKey: "AIzaSyCMcuCDtLUXQwC8J6RJeMpAfza3XV1NGS8",
+      authDomain: "mindmap-be49e.firebaseapp.com",
+      databaseURL: "https://mindmap-be49e-default-rtdb.firebaseio.com",
+      projectId: "mindmap-be49e",
+      storageBucket: "mindmap-be49e.firebasestorage.app",
+      messagingSenderId: "174338285999",
+      appId: "1:174338285999:web:5d44ef7a3bd24c95890f5a",
+      measurementId: "G-1YB6WP00RZ"
     };
 
     // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
     const auth = firebase.auth();
+    const storage = firebase.storage();
     
     // Main application variables
     const world = document.getElementById('world');
@@ -968,6 +1095,9 @@
     
     // Theme management
     let currentTheme = 'default';
+    
+    // Image handling variables
+    let imageEditingNodeId = null;
     
     // Initialize the application
     function init() {
@@ -1164,6 +1294,16 @@
         showColorMenu();
       };
       
+      // Image button event handler
+      document.getElementById('imageBtn').onclick = (e) => {
+        e.stopPropagation();
+        if (selectedNode) {
+          showImagePanel(selectedNode);
+        } else {
+          alert('Please select a node first to add an image.');
+        }
+      };
+      
       document.getElementById('exportBtn').onclick = exportData;
       document.getElementById('importBtn').onclick = () => document.getElementById('importInput')?.click() || createImportInput();
       
@@ -1225,6 +1365,58 @@
       document.getElementById('edit-panel-cancel').onclick = closeEditPanel;
       document.getElementById('overlay').onclick = closeEditPanel;
       
+      // Image panel buttons
+      document.getElementById('image-panel-save').onclick = saveImagePanel;
+      document.getElementById('image-panel-cancel').onclick = closeImagePanel;
+      document.getElementById('image-panel-remove').onclick = removeNodeImage;
+      document.getElementById('overlay').addEventListener('click', closeImagePanel);
+      
+      // Image URL input handling - UPDATED to use debounce
+      let debounceTimer;
+      const debounceHandleImageUrlInput = () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(handleImageUrlInput, 800);
+      };
+      
+      document.getElementById('image-url-input').addEventListener('input', debounceHandleImageUrlInput);
+      document.getElementById('image-url-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          handleImageUrlInput();
+        }
+      });
+      
+      // Image upload handling
+      document.getElementById('image-upload-area').addEventListener('click', () => {
+        document.getElementById('image-file-input').click();
+      });
+      
+      document.getElementById('image-file-input').addEventListener('change', handleImageUpload);
+      
+      // Drag and drop for image upload
+      const uploadArea = document.getElementById('image-upload-area');
+      uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.style.background = 'rgba(255,255,255,0.1)';
+      });
+      
+      uploadArea.addEventListener('dragleave', () => {
+        uploadArea.style.background = '';
+      });
+      
+      uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.style.background = '';
+        
+        if (e.dataTransfer.files.length > 0) {
+          const file = e.dataTransfer.files[0];
+          if (file.type.startsWith('image/')) {
+            previewImageFile(file);
+          } else {
+            alert('Please drop an image file.');
+          }
+        }
+      });
+      
       // Map manager event listeners
       document.getElementById('create-map-btn').onclick = createNewMap;
       document.getElementById('close-map-manager').onclick = hideMapManager;
@@ -1251,7 +1443,7 @@
         if (!e.target.closest('.node') && !e.target.closest('.context-menu') && 
             !e.target.closest('.node-edit-input') && !e.target.closest('#edit-panel') &&
             !e.target.closest('#map-manager-container') && !e.target.closest('.expand-toggle') &&
-            !e.target.closest('#toolbar')) { // Added exclusion for toolbar
+            !e.target.closest('#image-panel') && !e.target.closest('#toolbar')) { // Added exclusion for toolbar
           clearSelection();
           hideContextMenu();
         }
@@ -1641,7 +1833,27 @@
       
       const contentDiv = document.createElement('div');
       contentDiv.className = 'node-content';
-      contentDiv.textContent = node.text;
+      
+      const textDiv = document.createElement('div');
+      textDiv.textContent = node.text;
+      contentDiv.appendChild(textDiv);
+      
+      // Add image if it exists
+      if (node.imageUrl) {
+        const img = document.createElement('img');
+        img.className = 'node-image';
+        img.src = node.imageUrl;
+        img.alt = 'Node image';
+        img.onerror = function() {
+          // If image fails to load, show a placeholder
+          this.style.display = 'none';
+          const placeholder = document.createElement('div');
+          placeholder.className = 'node-image-placeholder';
+          placeholder.textContent = 'Image not found';
+          contentDiv.appendChild(placeholder);
+        };
+        contentDiv.appendChild(img);
+      }
       
       nodeElement.appendChild(contentDiv);
       world.appendChild(nodeElement);
@@ -1866,7 +2078,7 @@
         nodes[nodeId].text = editTextarea.value;
         
         // Update the node text in the DOM
-        const nodeElement = document.querySelector(`.node[data-id="${nodeId}"] .node-content`);
+        const nodeElement = document.querySelector(`.node[data-id="${nodeId}"] .node-content div`);
         if (nodeElement) {
           nodeElement.textContent = editTextarea.value;
         }
@@ -1932,6 +2144,225 @@
           nodeElement.style.backgroundColor = color;
         }
       }
+    }
+    
+    // Show image panel for a node
+    function showImagePanel(node) {
+      const imagePanel = document.getElementById('image-panel');
+      const imageUrlInput = document.getElementById('image-url-input');
+      const imagePreview = document.getElementById('image-preview');
+      const overlay = document.getElementById('overlay');
+      const removeBtn = document.getElementById('image-panel-remove');
+      
+      // Set current URL if exists
+      imageUrlInput.value = node.imageUrl || '';
+      
+      // Show preview if URL exists
+      if (node.imageUrl) {
+        imagePreview.src = node.imageUrl;
+        imagePreview.style.display = 'block';
+        removeBtn.style.display = 'block';
+      } else {
+        imagePreview.style.display = 'none';
+        removeBtn.style.display = 'none';
+      }
+      
+      imagePanel.style.display = 'block';
+      overlay.style.display = 'block';
+      
+      // Store which node we're editing
+      imagePanel.dataset.editingNode = node.id;
+      imageEditingNodeId = node.id;
+    }
+    
+    // Close image panel
+    function closeImagePanel() {
+      document.getElementById('image-panel').style.display = 'none';
+      document.getElementById('overlay').style.display = 'none';
+      document.getElementById('image-url-input').value = '';
+      document.getElementById('image-preview').style.display = 'none';
+      document.getElementById('image-preview').src = '';
+      document.getElementById('image-file-input').value = '';
+      imageEditingNodeId = null;
+    }
+    
+    // Handle image URL input - UPDATED to better handle image URLs
+    function handleImageUrlInput() {
+      const url = document.getElementById('image-url-input').value.trim();
+      const imagePreview = document.getElementById('image-preview');
+      const removeBtn = document.getElementById('image-panel-remove');
+      
+      if (url) {
+        // Validate URL - more permissive check for various image URLs
+        if (isValidImageUrl(url)) {
+          // Create a test image to check if it loads successfully
+          const testImage = new Image();
+          testImage.onload = function() {
+            imagePreview.src = url;
+            imagePreview.style.display = 'block';
+            removeBtn.style.display = 'block';
+          };
+          testImage.onerror = function() {
+            alert('The image URL is valid but the image failed to load. Please check the URL and try again.');
+            imagePreview.style.display = 'none';
+            removeBtn.style.display = 'none';
+          };
+          testImage.src = url;
+        } else {
+          alert('Please enter a valid image URL (jpg, png, gif, webp, or other common image formats)');
+        }
+      } else {
+        imagePreview.style.display = 'none';
+        removeBtn.style.display = 'none';
+      }
+    }
+    
+    // Check if URL is a valid image - UPDATED to be more permissive
+    function isValidImageUrl(url) {
+      // Allow any URL that starts with http, https, or data URI
+      if (!/^(https?|data):/i.test(url)) {
+        return false;
+      }
+      
+      // Check for common image file extensions
+      if (/\.(jpeg|jpg|gif|png|webp|bmp|svg|tiff?)$/i.test(url)) {
+        return true;
+      }
+      
+      // Check for data URI with image type
+      if (/^data:image\/(jpeg|jpg|gif|png|webp|bmp|svg\+xml|tiff?);base64,/i.test(url)) {
+        return true;
+      }
+      
+      // Allow URLs without extensions (they might be from image hosting services)
+      // We'll let the image loading test determine if it's valid
+      return true;
+    }
+    
+    // Handle image upload
+    function handleImageUpload(e) {
+      const file = e.target.files[0];
+      if (file) {
+        previewImageFile(file);
+      }
+    }
+    
+    // Preview image file
+    function previewImageFile(file) {
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file.');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const imagePreview = document.getElementById('image-preview');
+        const imageUrlInput = document.getElementById('image-url-input');
+        const removeBtn = document.getElementById('image-panel-remove');
+        
+        imagePreview.src = e.target.result;
+        imagePreview.style.display = 'block';
+        imageUrlInput.value = e.target.result; // Set as data URL
+        removeBtn.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    }
+    
+    // Save image from panel
+    function saveImagePanel() {
+      const imageUrl = document.getElementById('image-url-input').value.trim();
+      const nodeId = document.getElementById('image-panel').dataset.editingNode;
+      
+      if (nodeId && nodes[nodeId]) {
+        if (imageUrl) {
+          // Validate URL
+          if (!isValidImageUrl(imageUrl)) {
+            alert('Please enter a valid image URL (jpg, png, gif, webp, or other common image formats)');
+            return;
+          }
+          
+          // Update the node image in the data model
+          nodes[nodeId].imageUrl = imageUrl;
+          
+          // Update the node image in the DOM
+          updateNodeImage(nodeId, imageUrl);
+        } else {
+          // Remove image if URL is empty
+          nodes[nodeId].imageUrl = '';
+          removeNodeImageFromDOM(nodeId);
+        }
+        
+        saveToFirebase(); // Auto-save after image change
+      }
+      
+      closeImagePanel();
+    }
+    
+    // Update node image in DOM
+    function updateNodeImage(nodeId, imageUrl) {
+      const nodeElement = document.querySelector(`.node[data-id="${nodeId}"]`);
+      if (nodeElement) {
+        // Remove existing image if any
+        const existingImg = nodeElement.querySelector('.node-image');
+        const existingPlaceholder = nodeElement.querySelector('.node-image-placeholder');
+        if (existingImg) {
+          existingImg.remove();
+        }
+        if (existingPlaceholder) {
+          existingPlaceholder.remove();
+        }
+        
+        // Add new image
+        if (imageUrl) {
+          const img = document.createElement('img');
+          img.className = 'node-image';
+          img.src = imageUrl;
+          img.alt = 'Node image';
+          img.onerror = function() {
+            // If image fails to load, show a placeholder
+            this.style.display = 'none';
+            const placeholder = document.createElement('div');
+            placeholder.className = 'node-image-placeholder';
+            placeholder.textContent = 'Image not found';
+            nodeElement.querySelector('.node-content').appendChild(placeholder);
+          };
+          
+          const contentDiv = nodeElement.querySelector('.node-content');
+          contentDiv.appendChild(img);
+        }
+      }
+    }
+    
+    // Remove node image from DOM
+    function removeNodeImageFromDOM(nodeId) {
+      const nodeElement = document.querySelector(`.node[data-id="${nodeId}"]`);
+      if (nodeElement) {
+        const existingImg = nodeElement.querySelector('.node-image');
+        const existingPlaceholder = nodeElement.querySelector('.node-image-placeholder');
+        if (existingImg) {
+          existingImg.remove();
+        }
+        if (existingPlaceholder) {
+          existingPlaceholder.remove();
+        }
+      }
+    }
+    
+    // Remove image from node
+    function removeNodeImage() {
+      const nodeId = document.getElementById('image-panel').dataset.editingNode;
+      
+      if (nodeId && nodes[nodeId]) {
+        // Remove the node image in the data model
+        nodes[nodeId].imageUrl = '';
+        
+        // Remove the node image in the DOM
+        removeNodeImageFromDOM(nodeId);
+        
+        saveToFirebase(); // Auto-save after image removal
+      }
+      
+      closeImagePanel();
     }
     
     // Export data as JSON
@@ -2383,6 +2814,7 @@
       const menuItems = [
         { text: 'Edit', action: () => showEditPanel(node) },
         { text: 'Change Color', action: () => showColorMenu() },
+        { text: 'Add Image', action: () => showImagePanel(node) },
         { text: 'Delete', action: () => { deleteSelected(); saveToFirebase(); } },
         { text: 'Add Child Node', action: () => {
           const childX = node.x + 200;
@@ -2395,6 +2827,15 @@
           toggleNode(node.id);
         }}
       ];
+      
+      // If node has an image, add option to remove it
+      if (node.imageUrl) {
+        menuItems.splice(3, 0, { text: 'Remove Image', action: () => {
+          node.imageUrl = '';
+          removeNodeImageFromDOM(node.id);
+          saveToFirebase();
+        }});
+      }
       
       menuItems.forEach(item => {
         const menuItem = document.createElement('div');
