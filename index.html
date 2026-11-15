@@ -1,2985 +1,433 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Advanced Mind Map with Image Support</title>
-  <!-- Add Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
-  <style>
-    /* CSS Variables for Theming */
-    :root {
-      /* Default Theme */
-      --bg-color: #111;
-      --toolbar-bg: #222;
-      --toolbar-button-bg: #444;
-      --toolbar-button-hover: #555;
-      --toolbar-button-active: #2a6b9b;
-      --node-bg: #333;
-      --node-border: #666;
-      --node-selected-border: #0ff;
-      --node-text: #fff;
-      --connection-stroke: #0ff;
-      --connection-highlight: #ff0;
-      --edit-panel-bg: #333;
-      --context-menu-bg: #333;
-      --zoom-display-bg: rgba(0,0,0,0.5);
-      --auth-bg: #333;
-      --manager-bg: #333;
-      --text-primary: #fff;
-      --text-secondary: #aaa;
-      --accent-color: #0ff;
-    }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mind map planner</title>
+<style>
+:root{--bg:#eceee7;--dot:#c9cdc2;--ink:#1c2b2f;--card:#fcfcf9;--acc:#e0a526;--bar:#fcfcf9;--line:#d5d8cf}
+@media (prefers-color-scheme:dark){:root{--bg:#171e20;--dot:#2b3639;--ink:#e8ece6;--card:#243033;--bar:#1f292b;--line:#33423f}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+#stage{position:fixed;inset:0;background-image:radial-gradient(var(--dot) 1.2px,transparent 1.2px);background-size:24px 24px;cursor:grab;touch-action:none}
+#stage.pan{cursor:grabbing}
+#world{position:absolute;left:0;top:0;transform-origin:0 0}
+svg{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
+path{fill:none;stroke-width:2.5;stroke-linecap:round;opacity:.85}
+.n{position:absolute;min-width:72px;max-width:240px;padding:8px 14px 8px 16px;background:var(--card);border:1px solid var(--line);border-left:6px solid var(--c);border-radius:6px 14px 14px 6px;font:500 15px Georgia,"Iowan Old Style",serif;line-height:1.35;white-space:pre-wrap;overflow-wrap:anywhere;cursor:pointer;user-select:none;box-shadow:0 1px 0 var(--line)}
+.n.root{font-size:19px;font-weight:700;padding:12px 20px 12px 18px;border-left-width:8px;background:var(--c);color:#fff;border-color:var(--c)}
+.n.done{opacity:.55}.n.done .t{text-decoration:line-through}
+.n.dim{opacity:.22}
+.b{display:inline-flex;gap:5px;align-items:center;margin-left:8px;vertical-align:middle;font:600 11px system-ui,sans-serif;white-space:nowrap;text-decoration:none}
+.b b{background:var(--line);border-radius:9px;padding:1px 7px;font-weight:600;color:var(--ink)}
+.root .b b{background:rgba(255,255,255,.28);color:#fff}
+.b b.late{background:#c8553d;color:#fff}
+.p{width:9px;height:9px;border-radius:50%;display:inline-block}
+.p1{background:#5b9d6b}.p2{background:#e0a526}.p3{background:#c8553d}
+#panel{position:fixed;right:12px;bottom:44px;width:240px;display:flex;flex-direction:column;gap:8px;background:var(--bar);border:1px solid var(--line);border-radius:12px;padding:12px}
+#panel[hidden]{display:none}
+#panel label{display:flex;flex-direction:column;gap:3px;font-size:12px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:5px 8px}
+#q{width:150px}
+.n.sel{outline:2.5px solid var(--acc);outline-offset:2px}
+.t[contenteditable=true]{user-select:text;cursor:text;outline:2.5px solid var(--acc);outline-offset:4px;border-radius:3px}
+#bar{position:fixed;top:12px;left:12px;right:12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;pointer-events:none}
+#bar>*{pointer-events:auto}
+.g{display:flex;gap:4px;align-items:center;background:var(--bar);border:1px solid var(--line);border-radius:10px;padding:4px}
+button{font:inherit;color:var(--ink);background:transparent;border:0;border-radius:7px;padding:6px 10px;cursor:pointer}
+button:hover{background:var(--line)}
+button:focus-visible{outline:2px solid var(--acc)}
+.sw{width:22px;height:22px;padding:0;border-radius:50%;border:2px solid var(--bar)}
+.sw:hover{transform:scale(1.15);background:inherit}
+#hint{position:fixed;bottom:12px;left:12px;right:270px;font-size:12.5px;opacity:.7;pointer-events:none}
+#toast{position:fixed;bottom:44px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:7px 14px;border-radius:8px;opacity:0;transition:opacity .2s;pointer-events:none}
 
-    /* Cyber Theme */
-    [data-theme="cyber"] {
-      --bg-color: #0a0a16;
-      --toolbar-bg: #0d0d20;
-      --toolbar-button-bg: #16163a;
-      --toolbar-button-hover: #1d1d4d;
-      --toolbar-button-active: #4a1b8c;
-      --node-bg: #12122b;
-      --node-border: #4a1b8c;
-      --node-selected-border: #00ff9d;
-      --node-text: #00ff9d;
-      --connection-stroke: #00ff9d;
-      --connection-highlight: #ff00c8;
-      --edit-panel-bg: #0d0d20;
-      --context-menu-bg: #0d0d20;
-      --zoom-display-bg: rgba(10,10,22,0.8);
-      --auth-bg: #0d0d20;
-      --manager-bg: #0d0d20;
-      --text-primary: #00ff9d;
-      --text-secondary: #806ae8;
-      --accent-color: #00ff9d;
-    }
-
-    /* Glass Theme */
-    [data-theme="glass"] {
-      --bg-color: #0e1c26;
-      --toolbar-bg: rgba(41, 91, 119, 0.6);
-      --toolbar-button-bg: rgba(87, 166, 209, 0.4);
-      --toolbar-button-hover: rgba(120, 193, 235, 0.6);
-      --toolbar-button-active: rgba(58, 156, 212, 0.8);
-      --node-bg: rgba(41, 91, 119, 0.5);
-      --node-border: rgba(135, 206, 250, 0.6);
-      --node-selected-border: #7ec8e3;
-      --node-text: #cce6f4;
-      --connection-stroke: #7ec8e3;
-      --connection-highlight: #ffcc00;
-      --edit-panel-bg: rgba(41, 91, 119, 0.8);
-      --context-menu-bg: rgba(41, 91, 119, 0.8);
-      --zoom-display-bg: rgba(14, 28, 38, 0.7);
-      --auth-bg: rgba(41, 91, 119, 0.9);
-      --manager-bg: rgba(41, 91, 119, 0.9);
-      --text-primary: #cce6f4;
-      --text-secondary: #87cefa;
-      --accent-color: #7ec8e3;
-    }
-
-    /* Sci-Fi Theme */
-    [data-theme="scifi"] {
-      --bg-color: #000814;
-      --toolbar-bg: #001d3d;
-      --toolbar-button-bg: #003566;
-      --toolbar-button-hover: #00478a;
-      --toolbar-button-active: #ffc300;
-      --node-bg: #001d3d;
-      --node-border: #ffd60a;
-      --node-selected-border: #ffc300;
-      --node-text: #ffd60a;
-      --connection-stroke: #ffc300;
-      --connection-highlight: #ff5e81;
-      --edit-panel-bg: #001d3d;
-      --context-menu-bg: #001d3d;
-      --zoom-display-bg: rgba(0,8,20,0.8);
-      --auth-bg: #001d3d;
-      --manager-bg: #001d3d;
-      --text-primary: #ffd60a;
-      --text-secondary: #8ac6f9;
-      --accent-color: #ffc300;
-    }
-
-    /* Notebook Theme */
-    [data-theme="notebook"] {
-      --bg-color: #f0e6d2;
-      --toolbar-bg: #e6d6b9;
-      --toolbar-button-bg: #d4c5a3;
-      --toolbar-button-hover: #c9b892;
-      --toolbar-button-active: #8b6f47;
-      --node-bg: #f9f3e5;
-      --node-border: #8b6f47;
-      --node-selected-border: #5e4a2a;
-      --node-text: #5e4a2a;
-      --connection-stroke: #8b6f47;
-      --connection-highlight: #c97b3a;
-      --edit-panel-bg: #e6d6b9;
-      --context-menu-bg: #e6d6b9;
-      --zoom-display-bg: rgba(240,230,210,0.7);
-      --auth-bg: #e6d6b9;
-      --manager-bg: #e6d6b9;
-      --text-primary: #5e4a2a;
-      --text-secondary: #8b6f47;
-      --accent-color: #8b6f47;
-    }
-
-    /* Water Theme */
-    [data-theme="water"] {
-      --bg-color: #003b46;
-      --toolbar-bg: #07575b;
-      --toolbar-button-bg: #66a5ad;
-      --toolbar-button-hover: #87c0c7;
-      --toolbar-button-active: #c4dfe6;
-      --node-bg: rgba(102, 165, 173, 0.7);
-      --node-border: #c4dfe6;
-      --node-selected-border: #c4dfe6;
-      --node-text: #c4dfe6;
-      --connection-stroke: #c4dfe6;
-      --connection-highlight: #ff9d00;
-      --edit-panel-bg: #07575b;
-      --context-menu-bg: #07575b;
-      --zoom-display-bg: rgba(0,59,70,0.7);
-      --auth-bg: #07575b;
-      --manager-bg: #07575b;
-      --text-primary: #c4dfe6;
-      --text-secondary: #66a5ad;
-      --accent-color: #c4dfe6;
-    }
-
-    /* Apply theme variables */
-    body { 
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-      margin: 0; 
-      overflow: hidden; 
-      background: var(--bg-color); 
-      color: var(--text-primary); 
-      touch-action: none;
-      transition: background-color 0.3s ease;
-    }
-    #toolbar { 
-      padding: 8px; 
-      background: var(--toolbar-bg); 
-      position: fixed; 
-      top: 0; 
-      left: 0; 
-      right: 0; 
-      z-index: 10; 
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-      transition: background-color 0.3s ease;
-    }
-    #toolbar button, #toolbar select, #toolbar input { 
-      padding: 10px 14px;
-      background: var(--toolbar-button-bg); 
-      color: var(--text-primary);
-      border: 1px solid var(--node-border);
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-      min-height: 20px;
-      transition: all 0.3s ease;
-    }
-    #toolbar button:hover, #toolbar select:hover {
-      background: var(--toolbar-button-hover);
-    }
-    #toolbar button.active {
-      background: var(--toolbar-button-active);
-    }
-    #toolbar input {
-      background: var(--node-bg);
-      width: 100px;
-      min-height: 20px;
-    }
-    #toolbar .separator {
-      width: 1px;
-      background: var(--node-border);
-      margin: 0 8px;
-      height: 24px;
-    }
-    #stage { 
-      position: absolute; 
-      top: 50px;
-      left: 0; 
-      right: 0; 
-      bottom: 0; 
-      overflow: auto; 
-      -webkit-overflow-scrolling: touch;
-    }
-    #world { 
-      position: relative; 
-      width: 100000000000000000000000000000000000000000000000000000000000000000000px; 
-      height: 100000000000000000000000000000000000000000000000000000000000000000000px; 
-      transform-origin: 0 0;
-      transition: transform 0.1s ease;
-    }
-    .node { 
-      position: absolute; 
-      min-width: 130px;
-      max-width: 250px;
-      padding: 12px 16px;
-      background: var(--node-bg); 
-      border: 2px solid var(--node-border);
-      border-radius: 10px;
-      cursor: grab; 
-      user-select: none; 
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      transition: transform 0.1s ease, background-color 0.3s ease, border-color 0.3s ease;
-      font-size: 16px;
-      touch-action: none;
-      color: var(--node-text);
-    }
-    .node:hover {
-      transform: scale(1.02);
-    }
-    .node.selected { 
-      border-color: var(--node-selected-border); 
-      box-shadow: 0 0 10px rgba(0,255,255,0.5);
-    }
-    .node.dragging {
-      cursor: grabbing;
-      opacity: 0.9;
-    }
-    .node-content {
-      min-height: 24px;
-      word-wrap: break-word;
-    }
-    .node-image {
-      max-width: 100%;
-      max-height: 150px;
-      margin-top: 8px;
-      border-radius: 4px;
-      display: block;
-    }
-    .node-image-placeholder {
-      width: 100%;
-      height: 60px;
-      background-color: rgba(0,0,0,0.2);
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-top: 8px;
-      color: var(--text-secondary);
-      font-size: 12px;
-    }
-    svg { 
-      position: absolute; 
-      inset: 0; 
-      pointer-events: none; 
-    }
-    line.connection {
-      stroke: var(--connection-stroke);
-      stroke-width: 2;
-    }
-    line.connection.highlight {
-      stroke: var(--connection-highlight);
-      stroke-width: 3;
-    }
-    #zoom-display {
-      position: fixed;
-      bottom: 10px;
-      right: 10px;
-      background: var(--zoom-display-bg);
-      padding: 6px 10px;
-      border-radius: 4px;
-      font-size: 14px;
-      z-index: 5;
-      color: var(--text-primary);
-      transition: background-color 0.3s ease;
-    }
-    .context-menu {
-      position: fixed;
-      background: var(--context-menu-bg);
-      border: 1px solid var(--node-border);
-      border-radius: 4px;
-      box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-      z-index: 100;
-      min-width: 150px;
-      transition: background-color 0.3s ease;
-    }
-    .context-menu-item {
-      padding: 12px 16px;
-      cursor: pointer;
-      font-size: 16px;
-      color: var(--text-primary);
-      transition: background-color 0.3s ease;
-    }
-    .context-menu-item:hover {
-      background: var(--toolbar-button-hover);
-    }
-    .color-picker {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      padding: 10px;
-      width: 140px;
-    }
-    .color-option {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      cursor: pointer;
-      border: 2px solid var(--node-border);
-    }
-    .node-edit-input {
-      position: absolute;
-      background: var(--node-bg);
-      border: 2px solid var(--node-selected-border);
-      border-radius: 6px;
-      padding: 8px;
-      color: var(--node-text);
-      font: inherit;
-      z-index: 20;
-      min-width: 120px;
-      resize: both;
-      overflow: auto;
-      box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
-      font-size: 16px;
-    }
-    #edit-panel {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: var(--edit-panel-bg);
-      border: 2px solid var(--accent-color);
-      border-radius: 8px;
-      padding: 20px;
-      z-index: 100;
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
-      width: 320px;
-      display: none;
-      transition: background-color 0.3s ease;
-    }
-    #edit-panel h3 {
-      margin-top: 0;
-      color: var(--accent-color);
-      border-bottom: 1px solid var(--node-border);
-      padding-bottom: 10px;
-      font-size: 18px;
-    }
-    #edit-textarea {
-      width: 100%;
-      height: 120px;
-      background: var(--node-bg);
-      color: var(--node-text);
-      border: 1px solid var(--node-border);
-      border-radius: 4px;
-      padding: 10px;
-      resize: vertical;
-      margin-bottom: 15px;
-      font-family: inherit;
-      font-size: 16px;
-    }
-    #edit-panel-buttons {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-    }
-    #edit-panel button {
-      padding: 10px 18px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 16px;
-      min-width: 80px;
-    }
-    #edit-panel-save {
-      background: var(--toolbar-button-active);
-      color: var(--text-primary);
-    }
-    #edit-panel-cancel {
-      background: var(--toolbar-button-bg);
-      color: var(--text-primary);
-    }
-    #overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.7);
-      z-index: 90;
-      display: none;
-    }
-    
-    /* Image Panel */
-    #image-panel {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: var(--edit-panel-bg);
-      border: 2px solid var(--accent-color);
-      border-radius: 8px;
-      padding: 20px;
-      z-index: 100;
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
-      width: 400px;
-      display: none;
-      transition: background-color 0.3s ease;
-    }
-    #image-panel h3 {
-      margin-top: 0;
-      color: var(--accent-color);
-      border-bottom: 1px solid var(--node-border);
-      padding-bottom: 10px;
-      font-size: 18px;
-    }
-    #image-url-input {
-      width: 100%;
-      padding: 10px;
-      background: var(--node-bg);
-      color: var(--node-text);
-      border: 1px solid var(--node-border);
-      border-radius: 4px;
-      margin-bottom: 15px;
-      font-family: inherit;
-      font-size: 16px;
-    }
-    #image-upload-area {
-      border: 2px dashed var(--node-border);
-      border-radius: 8px;
-      padding: 20px;
-      text-align: center;
-      margin-bottom: 15px;
-      cursor: pointer;
-      transition: background 0.3s;
-    }
-    #image-upload-area:hover {
-      background: rgba(255,255,255,0.05);
-    }
-    #image-upload-area p {
-      margin: 0;
-      color: var(--text-secondary);
-    }
-    #image-preview {
-      max-width: 100%;
-      max-height: 200px;
-      margin: 15px auto;
-      display: none;
-      border-radius: 4px;
-    }
-    #image-panel-buttons {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-    }
-    #image-panel button {
-      padding: 10px 18px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 16px;
-      min-width: 80px;
-    }
-    #image-panel-save {
-      background: var(--toolbar-button-active);
-      color: var(--text-primary);
-    }
-    #image-panel-cancel {
-      background: var(--toolbar-button-bg);
-      color: var(--text-primary);
-    }
-    #image-panel-remove {
-      background: #e74c3c;
-      color: var(--text-primary);
-      margin-right: auto;
-    }
-    
-    /* Firebase auth UI */
-    #auth-container {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.8);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-    }
-    #auth-box {
-      background: var(--auth-bg);
-      padding: 30px;
-      border-radius: 10px;
-      width: 300px;
-      text-align: center;
-      transition: background-color 0.3s ease;
-    }
-    #auth-box h2 {
-      margin-top: 0;
-      color: var(--accent-color);
-    }
-    #auth-box input {
-      width: 100%;
-      padding: 12px;
-      margin: 10px 0;
-      border: 1px solid var(--node-border);
-      border-radius: 4px;
-      background: var(--node-bg);
-      color: var(--node-text);
-      box-sizing: border-box;
-    }
-    #auth-box button {
-      width: 100%;
-      padding: 12px;
-      margin: 5px 0;
-      border: none;
-      border-radius: 4px;
-      background: var(--toolbar-button-active);
-      color: var(--text-primary);
-      cursor: pointer;
-    }
-    #auth-box p {
-      margin: 15px 0 5px;
-      color: var(--text-secondary);
-    }
-    #auth-message {
-      color: #e74c3c;
-      margin: 10px 0;
-      min-height: 20px;
-    }
-    
-    /* New Mind Map Manager UI */
-    #map-manager-container {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.8);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-      display: none;
-    }
-    #map-manager-box {
-      background: var(--manager-bg);
-      padding: 20px;
-      border-radius: 10px;
-      width: 600px;
-      max-width: 90%;
-      max-height: 80%;
-      overflow-y: auto;
-      transition: background-color 0.3s ease;
-    }
-    #map-manager-box h2 {
-      margin-top: 0;
-      color: var(--accent-color);
-      border-bottom: 1px solid var(--node-border);
-      padding-bottom: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    #map-manager-box h2 span {
-      font-size: 16px;
-      color: var(--text-secondary);
-    }
-    #map-list-container {
-      margin: 20px 0;
-      max-height: 300px;
-      overflow-y: auto;
-      border: 1px solid var(--node-border);
-      border-radius: 4px;
-      background: var(--node-bg);
-    }
-    .map-list-header {
-      display: grid;
-      grid-template-columns: 1fr 120px 120px;
-      padding: 10px 16px;
-      background: var(--toolbar-bg);
-      font-weight: bold;
-      border-bottom: 1px solid var(--node-border);
-      color: var(--text-primary);
-    }
-    .map-item {
-      display: grid;
-      grid-template-columns: 1fr 120px 120px;
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--node-border);
-      align-items: center;
-      color: var(--text-primary);
-    }
-    .map-item:hover {
-      background: var(--toolbar-button-hover);
-    }
-    .map-item.active {
-      background: var(--toolbar-button-active);
-    }
-    .map-item-name {
-      font-weight: bold;
-      cursor: pointer;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .map-item-date {
-      font-size: 13px;
-      color: var(--text-secondary);
-    }
-    .map-item-actions {
-      display: flex;
-      gap: 8px;
-      justify-content: flex-end;
-    }
-    .map-item-actions button {
-      padding: 6px 10px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 12px;
-    }
-    .map-item-actions .load-btn {
-      background: var(--toolbar-button-active);
-      color: var(--text-primary);
-    }
-    .map-item-actions .rename-btn {
-      background: #f39c12;
-      color: var(--text-primary);
-    }
-    .map-item-actions .delete-btn {
-      background: #e74c3c;
-      color: var(--text-primary);
-    }
-    #new-map-section {
-      margin: 20px 0;
-      padding: 15px;
-      background: var(--toolbar-bg);
-      border-radius: 6px;
-    }
-    #new-map-section h3 {
-      margin-top: 0;
-      color: var(--accent-color);
-    }
-    #new-map-form {
-      display: flex;
-      gap: 10px;
-    }
-    #new-map-input {
-      flex: 1;
-      padding: 10px;
-      background: var(--node-bg);
-      color: var(--node-text);
-      border: 1px solid var(--node-border);
-      border-radius: 4px;
-    }
-    #create-map-btn {
-      padding: 10px 16px;
-      background: #2ecc71;
-      color: var(--text-primary);
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    #map-manager-buttons {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-      margin-top: 20px;
-    }
-    #map-manager-buttons button {
-      padding: 10px 16px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    #close-map-manager {
-      background: var(--toolbar-button-bg);
-      color: var(--text-primary);
-    }
-    #current-map-info {
-      margin: 10px 0;
-      padding: 10px;
-      background: var(--toolbar-bg);
-      border-radius: 4px;
-      font-size: 14px;
-      color: var(--text-primary);
-    }
-    
-    /* Expand/Collapse Button Styles */
-    .expand-toggle {
-      position: absolute;
-      right: 8px;
-      top: 8px;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: var(--toolbar-button-bg);
-      color: var(--text-primary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .expand-toggle:hover {
-      background: var(--toolbar-button-hover);
-    }
-    .node.collapsed > .expand-toggle::after {
-      content: '+';
-    }
-    .node:not(.collapsed) > .expand-toggle::after {
-      content: '-';
-    }
-    .node.collapsed .node-content {
-      opacity: 0.8;
-    }
-    
-    /* Theme-specific background effects */
-    [data-theme="glass"] #world {
-      backdrop-filter: blur(10px);
-    }
-    
-    [data-theme="water"] #world {
-      background-image: 
-        radial-gradient(circle at 10% 20%, rgba(0, 168, 255, 0.1) 0%, transparent 20%),
-        radial-gradient(circle at 90% 80%, rgba(0, 232, 216, 0.1) 0%, transparent 20%);
-      background-attachment: fixed;
-    }
-    
-    [data-theme="notebook"] #world {
-      background-image: 
-        linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
-      background-size: 20px 20px;
-    }
-    
-    [data-theme="cyber"] #world {
-      background-image: 
-        linear-gradient(rgba(0, 255, 157, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 255, 157, 0.05) 1px, transparent 1px);
-      background-size: 30px 30px;
-    }
-    
-    [data-theme="scifi"] #world {
-      background-image: 
-        radial-gradient(circle at 50% 50%, rgba(255, 214, 10, 0.05) 0%, transparent 50%);
-    }
-    
-    /* Mobile-specific styles */
-    @media (max-width: 768px) {
-      #toolbar {
-        padding: 6px;
-        gap: 4px;
-        overflow-x: auto;
-        white-space: nowrap;
-        height: 44px;
-      }
-      #toolbar button, #toolbar select, #toolbar input {
-        padding: 8px 10px;
-        font-size: 13px;
-      }
-      #stage {
-        top: 46px;
-      }
-      .node {
-        min-width: 110px;
-        padding: 10px 12px;
-        font-size: 15px;
-      }
-      #zoom-display {
-        bottom: 5px;
-        right: 5px;
-        font-size: 12px;
-        padding: 4px 8px;
-      }
-      #auth-box {
-        width: 90%;
-        max-width: 300px;
-      }
-      #map-manager-box {
-        width: 95%;
-        padding: 15px;
-      }
-      .map-list-header {
-        grid-template-columns: 1fr 90px 90px;
-        padding: 8px 12px;
-        font-size: 12px;
-      }
-      .map-item {
-        grid-template-columns: 1fr 90px 90px;
-        padding: 10px 12px;
-        font-size: 13px;
-      }
-      .map-item-actions {
-        flex-direction: column;
-        gap: 4px;
-      }
-      .map-item-actions button {
-        padding: 4px 6px;
-        font-size: 11px;
-      }
-      .expand-toggle {
-        width: 14px;
-        height: 14px;
-        font-size: 10px;
-        right: 6px;
-        top: 6px;
-      }
-      #image-panel {
-        width: 90%;
-        max-width: 350px;
-      }
-    }
-    
-    /* Prevent text selection on UI elements */
-    .node, #toolbar button, .context-menu-item {
-      -webkit-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      user-select: none;
-    }
-    
-    /* Long press detection style */
-    .long-press {
-      animation: pulse 0.8s infinite alternate;
-    }
-    @keyframes pulse {
-      from { transform: scale(1); }
-      to { transform: scale(1.05); }
-    }
-    
-    /* Theme Switcher Styles */
-    .theme-selector {
-      position: relative;
-    }
-    
-    .theme-options {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      background: var(--toolbar-bg);
-      border: 1px solid var(--node-border);
-      border-radius: 6px;
-      padding: 10px;
-      display: none;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      z-index: 20;
-      min-width: 200px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-    
-    .theme-option {
-      width: 40px;
-      height: 40px;
-      border-radius: 8px;
-      cursor: pointer;
-      border: 2px solid transparent;
-      transition: all 0.2s ease;
-    }
-    
-    .theme-option:hover {
-      transform: scale(1.1);
-    }
-    
-    .theme-option.active {
-      border-color: var(--accent-color);
-      box-shadow: 0 0 8px var(--accent-color);
-    }
-    
-    .theme-default {
-      background: linear-gradient(135deg, #111 0%, #333 100%);
-    }
-    
-    .theme-cyber {
-      background: linear-gradient(135deg, #0a0a16 0%, #4a1b8c 100%);
-    }
-    
-    .theme-glass {
-      background: linear-gradient(135deg, #0e1c26 0%, #295b77 100%);
-    }
-    
-    .theme-scifi {
-      background: linear-gradient(135deg, #000814 0%, #001d3d 100%);
-    }
-    
-    .theme-notebook {
-      background: linear-gradient(135deg, #f0e6d2 0%, #e6d6b9 100%);
-    }
-    
-    .theme-water {
-      background: linear-gradient(135deg, #003b46 0%, #07575b 100%);
-    }
-  </style>
+body.locked #stage,body.locked #bar,body.locked #panel,body.locked #hint,body.locked #notes{display:none}
+body.notes #stage,body.notes #mmTools,body.notes #panel,body.notes #hint{display:none}
+#mmTools{display:contents}
+.tab[aria-selected=true]{background:var(--ink);color:var(--bg)}
+#notes{position:fixed;inset:0;overflow:auto;padding:84px 16px 28px;display:none}
+body.notes #notes{display:block}
+#notes .wrap{max-width:1120px;margin:0 auto}
+#nhead{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+#nhead h2{margin:0;font:700 22px Georgia,"Iowan Old Style",serif}
+#nhead p{margin:2px 0 0;opacity:.7;font-size:13px}
+#cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--c);border-radius:6px 14px 14px 6px;padding:12px 14px 14px;display:flex;flex-direction:column;gap:6px}
+.card h3{margin:0;font:600 16px Georgia,"Iowan Old Style",serif}
+.card h3 span{opacity:.55;font:600 13px system-ui,sans-serif;margin-right:8px}
+.card .qq{margin:0;font-size:13px;opacity:.75}
+.card textarea{width:100%;min-height:112px;resize:vertical}
+.card.has{border-color:var(--c)}
+#auth{display:none;position:fixed;inset:0;z-index:8;align-items:center;justify-content:center;padding:16px;background:var(--bg)}
+#auth.show{display:flex}
+#af{width:100%;max-width:340px;background:var(--bar);border:1px solid var(--line);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:10px}
+#af h1{margin:0;font:700 22px Georgia,"Iowan Old Style",serif}
+#af p{margin:0;font-size:13px;opacity:.75;line-height:1.45}
+#af input{width:100%;padding:9px 10px}
+#aE{min-height:18px;font-size:13px;color:#c8553d}
+#af .row{display:flex;gap:8px}
+#af .row button{flex:1;padding:9px 10px;border:1px solid var(--line)}
+#aGo{background:var(--ink);color:var(--bg)}
+#aGo:disabled{opacity:.6;cursor:wait}
+#aReset{font-size:12px;color:var(--ink);opacity:.7;align-self:flex-start;background:none;padding:0}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
 </head>
-<body>
-  <!-- Firebase Auth UI -->
-  <div id="auth-container">
-    <div id="auth-box">
-      <h2>Mind Map Login</h2>
-      <div id="auth-message"></div>
-      <input type="email" id="email-input" placeholder="Email">
-      <input type="password" id="password-input" placeholder="Password">
-      <button id="login-btn">Login</button>
-      <button id="signup-btn">Sign Up</button>
-      <p>Or continue as</p>
-      <button id="guest-btn">Guest</button>
-    </div>
+<body class="locked">
+<div id="auth"><form id="af">
+  <h1 id="aT"></h1><p id="aP"></p>
+  <input type="password" id="a1" aria-label="Password" placeholder="Password" required>
+  <input type="password" id="a2" aria-label="Repeat password" placeholder="Repeat password">
+  <div id="aE" role="alert"></div>
+  <div class="row"><button type="button" id="aX">Cancel</button><button type="submit" id="aGo"></button></div>
+  <button type="button" id="aReset">Forgot the password? Erase and start over</button>
+</form></div>
+<div id="stage"><div id="world"><svg id="lines"></svg></div></div>
+<div id="bar">
+  <div class="g" role="tablist">
+    <button class="tab" id="tMap" role="tab" aria-selected="true">Mind map</button>
+    <button class="tab" id="tNotes" role="tab" aria-selected="false">Planning notes</button>
   </div>
+  <div class="g">
+    <button id="bHtml" title="Download this page with your encrypted data inside it, ready to upload to GitHub">Save HTML</button>
+    <button id="bPw">Password</button>
+    <button id="bLock">Lock</button>
+  </div>
+  <div id="mmTools">
+  <div class="g">
+    <button id="bChild" title="Tab">Add child</button>
+    <button id="bSib" title="Enter">Add sibling</button>
+    <button id="bEdit" title="F2 or double-click">Rename</button>
+    <button id="bDone" title="Space">Mark done</button>
+    <button id="bDel" title="Delete">Delete</button>
+    <button id="bCol" title="C">Collapse</button>
+  </div>
+  <div class="g" id="sws" aria-label="Branch colour"></div>
+  <div class="g">
+    <button id="bTidy">Tidy layout</button>
+    <button id="bFit">Fit to screen</button>
+  </div>
+  <div class="g">
+    <button id="bCopy">Copy outline</button>
+    <button id="bExp" title="Download the map as a JSON backup (not encrypted)">Save file</button>
+    <button id="bImp">Open file</button>
+    <button id="bNew">New map</button>
+  </div>
+  <div class="g"><button id="bUndo" title="Ctrl+Z">Undo</button><button id="bRedo" title="Ctrl+Y">Redo</button><input id="q" type="search" placeholder="Search ideas" aria-label="Search ideas"></div>
+  <input type="file" id="file" accept=".json,application/json" hidden>
+  </div>
+</div>
+<div id="notes"><div class="wrap">
+  <div id="nhead"><div><h2>Planning notes</h2><p id="ncount"></p></div><div class="g"><button id="bNCopy">Copy all notes</button></div></div>
+  <div id="cards"></div>
+</div></div>
+<div id="panel" hidden>
+  <label>Due date<input type="date" id="pDue"></label>
+  <label>Priority<select id="pPri"><option value="0">None</option><option value="1">Low</option><option value="2">Medium</option><option value="3">High</option></select></label>
+  <label>Notes<textarea id="pNote" rows="5" placeholder="Details, links, next steps"></textarea></label>
+</div>
+<div id="hint">Tab adds a child, Enter a sibling, C collapses a branch, Space marks done, Ctrl+Z undoes. Double-click renames. Drag cards to move a branch, scroll to zoom.</div>
+<div id="toast"></div>
+<script id="vault" type="application/json">null</script>
+<script>
+(function(){
+var SRC="<!DOCTYPE html>\n"+document.documentElement.outerHTML;
+var OLD='mindmap-planner-v1',LK='mindmap-planner-vault-v2';
+var COLORS=['#2f5d62','#c8553d','#c18a0e','#5b6c9d','#8a5a8f','#6b6f68'];
+var STEPS=[['Vision','What do I want to achieve?'],['Purpose','Why is it important?'],['Research','What do I need to know?'],['Brainstorming','What are all the possibilities?'],['Analysis','What are the advantages and disadvantages?'],['Strategy','What is the best approach?'],['Resources','What do I need?'],['Risk Analysis','What could go wrong?'],['Decision','Which option should I select?'],['Execution','How will I implement it?'],['Monitoring','Is everything going according to plan?'],['Review & Improvement','What can I improve next time?']];
+var stage=document.getElementById('stage'),world=document.getElementById('world'),svg=document.getElementById('lines');
+var S,sel,editing=false,drag=null,hist=[],hi=0,q='';
+var NOTES={},CK=null,SALT=null,EMB=null,migrated=false,vt=null,amode='unlock';
+try{EMB=JSON.parse(document.getElementById('vault').textContent.trim()||'null')}catch(e){}
 
-  <!-- New Mind Map Manager UI -->
-  <div id="map-manager-container">
-    <div id="map-manager-box">
-      <h2>Mind Map Manager <span id="maps-count">(0 maps)</span></h2>
-      
-      <div id="current-map-info">
-        Current Map: <span id="current-map-name">Default Map</span>
-      </div>
-      
-      <div id="map-list-container">
-        <div class="map-list-header">
-          <div>Map Name</div>
-          <div>Last Modified</div>
-          <div>Actions</div>
-        </div>
-        <div id="map-list">
-          <!-- Map items will be added here dynamically -->
-        </div>
-      </div>
-      
-      <div id="new-map-section">
-        <h3>Create New Map</h3>
-        <div id="new-map-form">
-          <input type="text" id="new-map-input" placeholder="Enter map name">
-          <button id="create-map-btn">Create New Map</button>
-        </div>
-      </div>
-      
-      <div id="map-manager-buttons">
-        <button id="close-map-manager">Close Manager</button>
-      </div>
-    </div>
-  </div>
+function uid(){return 'n'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function fresh(){var id=uid(),o={};o[id]={id:id,text:'My plan',x:0,y:0,parent:null,color:0,done:false};
+  STEPS.forEach(function(s,i){var c=uid()+i;o[c]={id:c,text:(i+1)+'. '+s[0],x:240,y:i*62,parent:id,color:(i+1)%COLORS.length,done:false,note:s[1]}});
+  return{root:id,nodes:o,view:{x:Math.max(80,innerWidth/2-300),y:innerHeight/2,k:1}}}
+function oldMap(){try{var t=localStorage.getItem(OLD);if(t){var d=JSON.parse(t);if(d&&d.nodes&&d.nodes[d.root])return d}}catch(e){}return null}
+function localVault(){try{return JSON.parse(localStorage.getItem(LK))}catch(e){return null}}
 
-  <div id="toolbar">
-    <button id="addBtn">Add Node</button>
-    <button id="connectBtn">Connect Nodes</button>
-    <button id="editBtn">Edit Node</button>
-    <button id="deleteBtn">Delete</button>
-    <div class="separator"></div>
-    <button id="zoomInBtn">Zoom In</button>
-    <button id="zoomOutBtn">Zoom Out</button>
-    <button id="resetViewBtn">Reset View</button>
-    <div class="separator"></div>
-    <button id="colorBtn">Color</button>
-    <button id="imageBtn">Add Image</button>
-    <button id="exportBtn">Export</button>
-    <button id="importBtn">Import</button>
-    <div class="separator"></div>
-    <select id="layoutBtn">
-      <option value="">Layout</option>
-      <option value="horizontal">Horizontal</option>
-      <option value="vertical">Vertical</option>
-      <option value="radial">Radial</option>
-    </select>
-    <input type="text" id="searchInput" placeholder="Search nodes...">
-    <div class="separator"></div>
-    <button id="saveBtn">Save to Cloud</button>
-    <button id="loadBtn">Load from Cloud</button>
-    <button id="mapsBtn">Manage Maps</button>
-    <button id="expandCollapseBtn">Expand/Collapse</button>
-    
-    <!-- Theme Selector -->
-    <div class="theme-selector">
-      <button id="themeBtn">Themes</button>
-      <div id="themeOptions" class="theme-options">
-        <div class="theme-option theme-default active" data-theme="default"></div>
-        <div class="theme-option theme-cyber" data-theme="cyber"></div>
-        <div class="theme-option theme-glass" data-theme="glass"></div>
-        <div class="theme-option theme-scifi" data-theme="scifi"></div>
-        <div class="theme-option theme-notebook" data-theme="notebook"></div>
-        <div class="theme-option theme-water" data-theme="water"></div>
-      </div>
-    </div>
-    
-    <button id="logoutBtn" style="display:none;">Logout</button>
-  </div>
-  <div id="stage">
-    <div id="world">
-      <svg id="edges" width="100000000000000000000000000000000000000000000000000000000000000000000" height="100000000000000000000000000000000000000000000000000000000000000000000"></svg>
-    </div>
-  </div>
-  <div id="zoom-display">100%</div>
-  
-  <!-- Edit Panel -->
-  <div id="overlay"></div>
-  <div id="edit-panel">
-    <h3>Edit Node Content</h3>
-    <textarea id="edit-textarea"></textarea>
-    <div id="edit-panel-buttons">
-      <button id="edit-panel-cancel">Cancel</button>
-      <button id="edit-panel-save">Save</button>
-    </div>
-  </div>
-  
-  <!-- Image Panel -->
-  <div id="image-panel">
-    <h3>Add Image to Node</h3>
-    <input type="text" id="image-url-input" placeholder="Enter image URL">
-    <p>Or</p>
-    <div id="image-upload-area">
-      <p>Click to upload an image or drag & drop here</p>
-      <input type="file" id="image-file-input" accept="image/*" style="display: none;">
-    </div>
-    <img id="image-preview" alt="Image preview">
-    <div id="image-panel-buttons">
-      <button id="image-panel-remove">Remove Image</button>
-      <button id="image-panel-cancel">Cancel</button>
-      <button id="image-panel-save">Save</button>
-    </div>
-  </div>
-  
-  <script>
-    // Firebase configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyCMcuCDtLUXQwC8J6RJeMpAfza3XV1NGS8",
-      authDomain: "mindmap-be49e.firebaseapp.com",
-      databaseURL: "https://mindmap-be49e-default-rtdb.firebaseio.com",
-      projectId: "mindmap-be49e",
-      storageBucket: "mindmap-be49e.firebasestorage.app",
-      messagingSenderId: "174338285999",
-      appId: "1:174338285999:web:5d44ef7a3bd24c95890f5a",
-      measurementId: "G-1YB6WP00RZ"
-    };
+/* encryption: password -> PBKDF2 -> AES-GCM */
+var enc=new TextEncoder(),dec=new TextDecoder();
+function b64(buf){var a=new Uint8Array(buf),s='';for(var i=0;i<a.length;i++)s+=String.fromCharCode(a[i]);return btoa(s)}
+function unb64(s){var b=atob(s),a=new Uint8Array(b.length);for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a}
+function derive(pw,salt){return crypto.subtle.importKey('raw',enc.encode(pw),'PBKDF2',false,['deriveKey']).then(function(m){
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:salt,iterations:250000,hash:'SHA-256'},m,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])})}
+function seal(){var iv=crypto.getRandomValues(new Uint8Array(12));
+  return crypto.subtle.encrypt({name:'AES-GCM',iv:iv},CK,enc.encode(JSON.stringify({map:S,notes:NOTES}))).then(function(ct){
+    return{v:1,salt:b64(SALT),iv:b64(iv),data:b64(ct),ts:Date.now()}})}
+function openVault(v,pw){var salt=unb64(v.salt);return derive(pw,salt).then(function(k){
+  return crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(v.iv)},k,unb64(v.data)).then(function(pt){
+    return{key:k,salt:salt,payload:JSON.parse(dec.decode(pt)),ts:v.ts||0}})})}
+function flush(){clearTimeout(vt);if(!CK||!S)return Promise.resolve(null);
+  return seal().then(function(v){
+    try{localStorage.setItem(LK,JSON.stringify(v));if(migrated){localStorage.removeItem(OLD);migrated=false}}catch(e){toast('Could not save in this browser')}
+    return v})}
+function persist(){clearTimeout(vt);vt=setTimeout(flush,300)}
+function snapStr(){return JSON.stringify({root:S.root,nodes:S.nodes})}
+function snap(){var t=snapStr();if(t===hist[hi])return;hist=hist.slice(0,hi+1);hist.push(t);if(hist.length>80)hist.shift();hi=hist.length-1}
+function save(){persist();snap()}
+function jump(i){if(i<0||i>=hist.length)return;hi=i;var d=JSON.parse(hist[hi]);S.nodes=d.nodes;S.root=d.root;if(!S.nodes[sel])sel=S.root;render();persist()}
+function undo(){jump(hi-1)}function redo(){jump(hi+1)}
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.style.opacity=1;clearTimeout(toast.h);toast.h=setTimeout(function(){t.style.opacity=0},1800)}
+function el(id){return world.querySelector('[data-id="'+id+'"]')}
+function kids(id){return Object.values(S.nodes).filter(function(n){return n.parent===id})}
+function subtree(id){var out=[id];kids(id).forEach(function(c){out=out.concat(subtree(c.id))});return out}
 
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-    const auth = firebase.auth();
-    const storage = firebase.storage();
-    
-    // Main application variables
-    const world = document.getElementById('world');
-    const stage = document.getElementById('stage');
-    const edgesSVG = document.getElementById('edges');
-    let nodes = {};
-    let edges = [];
-    let idCounter = 1;
-    let connectMode = false;
-    let editMode = false;
-    let connectFrom = null;
-    let selectedNode = null;
-    let scale = 1;
-    let panning = false;
-    let startX, startY;
-    let initialPinchDistance = null;
-    let lastX = 0, lastY = 0;
-    let activeEditInput = null;
-    let longPressTimer = null;
-    let isLongPress = false;
-    let currentUser = null;
-    let currentMapId = 'default';
-    let mindMaps = {}; // Store all user's mind maps
-    
-    // New variables for fixing node dragging
-    let isDraggingNode = false;
-    let initialTouchPositions = null;
-    
-    // Variables for zooming from pointer position
-    let zoomCenterX = 0;
-    let zoomCenterY = 0;
-    
-    // Theme management
-    let currentTheme = 'default';
-    
-    // Image handling variables
-    let imageEditingNodeId = null;
-    
-    // Initialize the application
-    function init() {
-      // Load saved theme if available
-      const savedTheme = localStorage.getItem('mindmap_theme');
-      if (savedTheme) {
-        setTheme(savedTheme);
-      }
-      
-      // Setup auth event listeners
-      setupAuthEventListeners();
-      
-      // Check if user was previously logged in
-      const savedUser = localStorage.getItem('mindmap_user');
-      if (savedUser) {
-        try {
-          currentUser = JSON.parse(savedUser);
-          document.getElementById('auth-container').style.display = 'none';
-          document.getElementById('logoutBtn').style.display = 'block';
-          initApp();
-        } catch (e) {
-          console.error('Error parsing saved user:', e);
-          localStorage.removeItem('mindmap_user');
-        }
-      }
-    }
-    
-    // Initialize the app after authentication
-    function initApp() {
-      // Add event listeners
-      setupEventListeners();
-      
-      // Load list of mind maps
-      loadMindMapsList();
-      
-      // Try to load from Firebase
-      loadFromFirebase();
-      
-      // If no data, add initial node
-      if (Object.keys(nodes).length === 0) {
-        addNode(500, 500, 'Main Topic');
-      }
-      
-      // Update zoom display
-      updateZoomDisplay();
-    }
-    
-    // Set up authentication event listeners
-    function setupAuthEventListeners() {
-      document.getElementById('login-btn').onclick = handleLogin;
-      document.getElementById('signup-btn').onclick = handleSignup;
-      document.getElementById('guest-btn').onclick = handleGuest;
-      document.getElementById('logoutBtn').onclick = handleLogout;
-      
-      // Allow submitting with Enter key
-      document.getElementById('email-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleLogin();
-      });
-      document.getElementById('password-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleLogin();
-      });
-    }
-    
-    // Handle user login
-    function handleLogin() {
-      const email = document.getElementById('email-input').value;
-      const password = document.getElementById('password-input').value;
-      const authMessage = document.getElementById('auth-message');
-      
-      if (!email || !password) {
-        authMessage.textContent = 'Please enter both email and password';
-        return;
-      }
-      
-      authMessage.textContent = 'Logging in...';
-      
-      auth.signInWithEmailAndPassword(email, password)
-        .then((userCredential) => {
-          currentUser = userCredential.user;
-          localStorage.setItem('mindmap_user', JSON.stringify({
-            uid: currentUser.uid,
-            email: currentUser.email
-          }));
-          document.getElementById('auth-container').style.display = 'none';
-          document.getElementById('logoutBtn').style.display = 'block';
-          authMessage.textContent = '';
-          initApp();
-        })
-        .catch((error) => {
-          authMessage.textContent = error.message;
-        });
-    }
-    
-    // Handle user signup
-    function handleSignup() {
-      const email = document.getElementById('email-input').value;
-      const password = document.getElementById('password-input').value;
-      const authMessage = document.getElementById('auth-message');
-      
-      if (!email || !password) {
-        authMessage.textContent = 'Please enter both email and password';
-        return;
-      }
-      
-      if (password.length < 6) {
-        authMessage.textContent = 'Password should be at least 6 characters';
-        return;
-      }
-      
-      authMessage.textContent = 'Creating account...';
-      
-      auth.createUserWithEmailAndPassword(email, password)
-        .then((userCredential) => {
-          currentUser = userCredential.user;
-          localStorage.setItem('mindmap_user', JSON.stringify({
-            uid: currentUser.uid,
-            email: currentUser.email
-          }));
-          document.getElementById('auth-container').style.display = 'none';
-          document.getElementById('logoutBtn').style.display = 'block';
-          authMessage.textContent = '';
-          initApp();
-        })
-        .catch((error) => {
-          authMessage.textContent = error.message;
-        });
-    }
-    
-    // Handle guest access
-    function handleGuest() {
-      currentUser = { uid: 'guest', email: 'guest@example.com' };
-      document.getElementById('auth-container').style.display = 'none';
-      initApp();
-    }
-    
-    // Handle user logout
-    function handleLogout() {
-      auth.signOut().then(() => {
-        currentUser = null;
-        localStorage.removeItem('mindmap_user');
-        document.getElementById('logoutBtn').style.display = 'none';
-        document.getElementById('auth-container').style.display = 'flex';
-        
-        // Clear current mind map
-        nodes = {};
-        edges = [];
-        idCounter = 1;
-        world.querySelectorAll('.node').forEach(n => n.remove());
-        edgesSVG.innerHTML = '';
-        clearSelection();
-      }).catch((error) => {
-        console.error('Logout error:', error);
-      });
-    }
-    
-    // Set up all event listeners
-    function setupEventListeners() {
-      // Toolbar buttons
-      document.getElementById('addBtn').onclick = () => {
-        const x = 500 + Math.random() * 400;
-        const y = 500 + Math.random() * 400;
-        addNode(x, y, 'New Node');
-        saveToFirebase(); // Auto-save after adding node
-      };
-      
-      document.getElementById('connectBtn').onclick = () => {
-        connectMode = !connectMode;
-        editMode = false;
-        document.getElementById('connectBtn').classList.toggle('active', connectMode);
-        document.getElementById('editBtn').classList.remove('active');
-        connectFrom = null;
-        clearSelection();
-      };
-      
-      document.getElementById('editBtn').onclick = () => {
-        editMode = !editMode;
-        connectMode = false;
-        document.getElementById('editBtn').classList.toggle('active', editMode);
-        document.getElementById('connectBtn').classList.remove('active');
-      };
-      
-      document.getElementById('deleteBtn').onclick = () => {
-        deleteSelected();
-        saveToFirebase(); // Auto-save after deletion
-      };
-      
-      document.getElementById('zoomInBtn').onclick = () => adjustZoom(0.1);
-      document.getElementById('zoomOutBtn').onclick = () => adjustZoom(-0.1);
-      document.getElementById('resetViewBtn').onclick = resetView;
-      
-      // Fixed color button event handler
-      document.getElementById('colorBtn').onclick = (e) => {
-        e.stopPropagation(); // Prevent event from bubbling up
-        showColorMenu();
-      };
-      
-      // Image button event handler
-      document.getElementById('imageBtn').onclick = (e) => {
-        e.stopPropagation();
-        if (selectedNode) {
-          showImagePanel(selectedNode);
-        } else {
-          alert('Please select a node first to add an image.');
-        }
-      };
-      
-      document.getElementById('exportBtn').onclick = exportData;
-      document.getElementById('importBtn').onclick = () => document.getElementById('importInput')?.click() || createImportInput();
-      
-      document.getElementById('layoutBtn').onchange = (e) => {
-        if (e.target.value) {
-          applyLayout(e.target.value);
-          saveToFirebase(); // Auto-save after layout change
-        }
-      };
-      
-      document.getElementById('searchInput').oninput = (e) => {
-        searchNodes(e.target.value);
-      };
-      
-      // Firebase save/load buttons
-      document.getElementById('saveBtn').onclick = saveToFirebase;
-      document.getElementById('loadBtn').onclick = loadFromFirebase;
-      
-      // Map management button
-      document.getElementById('mapsBtn').onclick = showMapManager;
-      
-      // Expand/Collapse button
-      document.getElementById('expandCollapseBtn').onclick = toggleExpandCollapse;
-      
-      // Theme button
-      document.getElementById('themeBtn').onclick = (e) => {
-        e.stopPropagation();
-        const themeOptions = document.getElementById('themeOptions');
-        themeOptions.style.display = themeOptions.style.display === 'grid' ? 'none' : 'grid';
-      };
-      
-      // Theme selection
-      document.querySelectorAll('.theme-option').forEach(option => {
-        option.addEventListener('click', (e) => {
-          const theme = e.target.getAttribute('data-theme');
-          setTheme(theme);
-          document.getElementById('themeOptions').style.display = 'none';
-          
-          // Update active theme indicator
-          document.querySelectorAll('.theme-option').forEach(opt => {
-            opt.classList.remove('active');
-          });
-          e.target.classList.add('active');
-        });
-      });
-      
-      // Close theme options when clicking elsewhere
-      document.addEventListener('click', (e) => {
-        if (!e.target.closest('.theme-selector')) {
-          document.getElementById('themeOptions').style.display = 'none';
-        }
-      });
-      
-      // Edit panel buttons
-      document.getElementById('edit-panel-save').onclick = () => {
-        saveEditPanel();
-        saveToFirebase(); // Auto-save after editing
-      };
-      document.getElementById('edit-panel-cancel').onclick = closeEditPanel;
-      document.getElementById('overlay').onclick = closeEditPanel;
-      
-      // Image panel buttons
-      document.getElementById('image-panel-save').onclick = saveImagePanel;
-      document.getElementById('image-panel-cancel').onclick = closeImagePanel;
-      document.getElementById('image-panel-remove').onclick = removeNodeImage;
-      document.getElementById('overlay').addEventListener('click', closeImagePanel);
-      
-      // Image URL input handling - UPDATED to use debounce
-      let debounceTimer;
-      const debounceHandleImageUrlInput = () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(handleImageUrlInput, 800);
-      };
-      
-      document.getElementById('image-url-input').addEventListener('input', debounceHandleImageUrlInput);
-      document.getElementById('image-url-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          handleImageUrlInput();
-        }
-      });
-      
-      // Image upload handling
-      document.getElementById('image-upload-area').addEventListener('click', () => {
-        document.getElementById('image-file-input').click();
-      });
-      
-      document.getElementById('image-file-input').addEventListener('change', handleImageUpload);
-      
-      // Drag and drop for image upload
-      const uploadArea = document.getElementById('image-upload-area');
-      uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.style.background = 'rgba(255,255,255,0.1)';
-      });
-      
-      uploadArea.addEventListener('dragleave', () => {
-        uploadArea.style.background = '';
-      });
-      
-      uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadArea.style.background = '';
-        
-        if (e.dataTransfer.files.length > 0) {
-          const file = e.dataTransfer.files[0];
-          if (file.type.startsWith('image/')) {
-            previewImageFile(file);
-          } else {
-            alert('Please drop an image file.');
-          }
-        }
-      });
-      
-      // Map manager event listeners
-      document.getElementById('create-map-btn').onclick = createNewMap;
-      document.getElementById('close-map-manager').onclick = hideMapManager;
-      
-      // Allow Enter key to create new map
-      document.getElementById('new-map-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') createNewMap();
-      });
-      
-      // Panning and zooming
-      stage.addEventListener('wheel', handleWheel, { passive: false });
-      stage.addEventListener('mousedown', startPan);
-      document.addEventListener('mousemove', handlePan);
-      document.addEventListener('mouseup', stopPan);
-      
-      // Touch events for mobile - UPDATED
-      setupTouchEvents();
-      
-      // Context menu
-      stage.addEventListener('contextmenu', handleContextMenu);
-      
-      // Click outside to clear selection - Fixed to exclude toolbar clicks
-      document.addEventListener('click', (e) => {
-        if (!e.target.closest('.node') && !e.target.closest('.context-menu') && 
-            !e.target.closest('.node-edit-input') && !e.target.closest('#edit-panel') &&
-            !e.target.closest('#map-manager-container') && !e.target.closest('.expand-toggle') &&
-            !e.target.closest('#image-panel') && !e.target.closest('#toolbar')) { // Added exclusion for toolbar
-          clearSelection();
-          hideContextMenu();
-        }
-      });
-      
-      // Double click to edit
-      stage.addEventListener('dblclick', (e) => {
-        const node = e.target.closest('.node');
-        if (node && !e.target.closest('.expand-toggle')) {
-          const nodeId = node.dataset.id;
-          selectNode(nodeId);
-          showEditPanel(nodes[nodeId]);
-        }
-      });
-      
-      // Auto-save on node drag end
-      document.addEventListener('mouseup', () => {
-        if (isDraggingNode) {
-          saveToFirebase();
-          isDraggingNode = false;
-        }
-      });
-    }
-    
-    // Set the current theme
-    function setTheme(theme) {
-      currentTheme = theme;
-      document.body.setAttribute('data-theme', theme);
-      localStorage.setItem('mindmap_theme', theme);
-    }
-    
-    // Save mind map to Firebase
-    function saveToFirebase() {
-      if (!currentUser) return;
-      
-      const data = {
-        nodes: Object.values(nodes),
-        edges: edges,
-        idCounter: idCounter,
-        lastUpdated: Date.now(),
-        name: getCurrentMapName()
-      };
-      
-      const userPath = currentUser.uid === 'guest' ? 'guest_maps' : `users/${currentUser.uid}/maps`;
-      
-      database.ref(`${userPath}/${currentMapId}`).set(data)
-        .then(() => {
-          console.log('Data saved successfully to Firebase');
-          // Show a temporary save confirmation
-          const saveBtn = document.getElementById('saveBtn');
-          const originalText = saveBtn.textContent;
-          saveBtn.textContent = 'Saved!';
-          setTimeout(() => {
-            saveBtn.textContent = originalText;
-          }, 2000);
-          
-          // Refresh the map list to show updated timestamp
-          loadMindMapsList();
-        })
-        .catch((error) => {
-          console.error('Error saving data to Firebase:', error);
-          alert('Failed to save to cloud: ' + error.message);
-        });
-    }
-    
-    // Get current map name
-    function getCurrentMapName() {
-      if (currentMapId === 'default') return 'Default Map';
-      if (mindMaps[currentMapId] && mindMaps[currentMapId].name) {
-        return mindMaps[currentMapId].name;
-      }
-      return currentMapId;
-    }
-    
-    // Load mind map from Firebase
-    function loadFromFirebase() {
-      if (!currentUser) return;
-      
-      const userPath = currentUser.uid === 'guest' ? 'guest_maps' : `users/${currentUser.uid}/maps`;
-      
-      database.ref(`${userPath}/${currentMapId}`).once('value')
-        .then((snapshot) => {
-          const data = snapshot.val();
-          if (data) {
-            loadData(data);
-            console.log('Data loaded successfully from Firebase');
-            updateCurrentMapInfo();
-          } else {
-            console.log('No data found in Firebase, using local data');
-            // Create a new empty map if none exists
-            if (Object.keys(nodes).length === 0) {
-              addNode(500, 500, 'Main Topic');
-            }
-            updateCurrentMapInfo();
-          }
-        })
-        .catch((error) => {
-          console.error('Error loading data from Firebase:', error);
-          alert('Failed to load from cloud: ' + error.message);
-        });
-    }
-    
-    // Update current map info display
-    function updateCurrentMapInfo() {
-      document.getElementById('current-map-name').textContent = getCurrentMapName();
-    }
-    
-    // Load list of all mind maps for the current user
-    function loadMindMapsList() {
-      if (!currentUser) return;
-      
-      const userPath = currentUser.uid === 'guest' ? 'guest_maps' : `users/${currentUser.uid}/maps`;
-      
-      database.ref(userPath).once('value')
-        .then((snapshot) => {
-          const maps = snapshot.val();
-          mindMaps = maps || {};
-          renderMapsList();
-        })
-        .catch((error) => {
-          console.error('Error loading mind maps list:', error);
-        });
-    }
-    
-    // Render the list of mind maps in the manager UI
-    function renderMapsList() {
-      const mapList = document.getElementById('map-list');
-      mapList.innerHTML = '';
-      
-      // Update maps count
-      const mapsCount = Object.keys(mindMaps).length;
-      document.getElementById('maps-count').textContent = `(${mapsCount} maps)`;
-      
-      if (!mindMaps || mapsCount === 0) {
-        mapList.innerHTML = '<div class="map-item" style="grid-column: 1 / span 3; justify-content: center; cursor: default;">No maps found</div>';
-        return;
-      }
-      
-      Object.entries(mindMaps).forEach(([mapId, mapData]) => {
-        const mapItem = document.createElement('div');
-        mapItem.className = 'map-item';
-        if (mapId === currentMapId) {
-          mapItem.classList.add('active');
-        }
-        
-        // Map name
-        const mapName = document.createElement('div');
-        mapName.className = 'map-item-name';
-        mapName.textContent = mapData.name || mapId;
-        mapName.title = mapData.name || mapId;
-        mapName.onclick = () => switchToMap(mapId);
-        
-        // Last modified date
-        const mapDate = document.createElement('div');
-        mapDate.className = 'map-item-date';
-        mapDate.textContent = mapData.lastUpdated ? 
-          new Date(mapData.lastUpdated).toLocaleDateString() : 'Unknown';
-        
-        // Action buttons
-        const mapActions = document.createElement('div');
-        mapActions.className = 'map-item-actions';
-        
-        const loadBtn = document.createElement('button');
-        loadBtn.textContent = 'Load';
-        loadBtn.className = 'load-btn';
-        loadBtn.onclick = () => switchToMap(mapId);
-        
-        const renameBtn = document.createElement('button');
-        renameBtn.textContent = 'Rename';
-        renameBtn.className = 'rename-btn';
-        renameBtn.onclick = () => renameMap(mapId);
-        
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = 'Delete';
-        deleteBtn.className = 'delete-btn';
-        deleteBtn.onclick = () => deleteMap(mapId);
-        
-        mapActions.appendChild(loadBtn);
-        mapActions.appendChild(renameBtn);
-        mapActions.appendChild(deleteBtn);
-        
-        mapItem.appendChild(mapName);
-        mapItem.appendChild(mapDate);
-        mapItem.appendChild(mapActions);
-        
-        mapList.appendChild(mapItem);
-      });
-    }
-    
-    // Switch to a different mind map
-    function switchToMap(mapId) {
-      // Save current map first
-      saveToFirebase();
-      
-      // Clear current data
-      nodes = {};
-      edges = [];
-      idCounter = 1;
-      world.querySelectorAll('.node').forEach(n => n.remove());
-      edgesSVG.innerHTML = '';
-      clearSelection();
-      
-      // Set new map ID and load
-      currentMapId = mapId;
-      loadFromFirebase();
-      hideMapManager();
-    }
-    
-    // Create a new mind map
-    function createNewMap() {
-      const mapNameInput = document.getElementById('new-map-input');
-      const mapName = mapNameInput.value.trim();
-      
-      if (!mapName) {
-        alert('Please enter a name for your new mind map');
-        return;
-      }
-      
-      // Generate a unique ID for the map
-      const mapId = 'map_' + Date.now();
-      
-      // Create initial data for the new map
-      const initialData = {
-        nodes: [{
-          id: 1,
-          x: 500,
-          y: 500,
-          text: 'Main Topic',
-          color: '#333',
-          borderColor: '#666',
-          expanded: true
-        }],
-        edges: [],
-        idCounter: 2,
-        lastUpdated: Date.now(),
-        name: mapName,
-        createdAt: Date.now()
-      };
-      
-      const userPath = currentUser.uid === 'guest' ? 'guest_maps' : `users/${currentUser.uid}/maps`;
-      
-      database.ref(`${userPath}/${mapId}`).set(initialData)
-        .then(() => {
-          // Add the new map to our local list
-          mindMaps[mapId] = initialData;
-          renderMapsList();
-          
-          // Clear the input field
-          mapNameInput.value = '';
-          
-          // Switch to the new map
-          switchToMap(mapId);
-        })
-        .catch((error) => {
-          console.error('Error creating new map:', error);
-          alert('Failed to create new map: ' + error.message);
-        });
-    }
-    
-    // Rename a mind map
-    function renameMap(mapId) {
-      const currentName = mindMaps[mapId]?.name || mapId;
-      const newName = prompt('Enter a new name for this mind map:', currentName);
-      
-      if (newName && newName.trim()) {
-        const userPath = currentUser.uid === 'guest' ? 'guest_maps' : `users/${currentUser.uid}/maps`;
-        
-        database.ref(`${userPath}/${mapId}/name`).set(newName.trim())
-          .then(() => {
-            // Update local data
-            if (mindMaps[mapId]) {
-              mindMaps[mapId].name = newName.trim();
-            } else {
-              mindMaps[mapId] = { name: newName.trim() };
-            }
-            
-            // If this is the current map, update the display
-            if (mapId === currentMapId) {
-              updateCurrentMapInfo();
-            }
-            
-            renderMapsList();
-          })
-          .catch((error) => {
-            console.error('Error renaming map:', error);
-            alert('Failed to rename map: ' + error.message);
-          });
-      }
-    }
-    
-    // Delete a mind map
-    function deleteMap(mapId) {
-      if (!confirm('Are you sure you want to delete this mind map? This action cannot be undone.')) {
-        return;
-      }
-      
-      const userPath = currentUser.uid === 'guest' ? 'guest_maps' : `users/${currentUser.uid}/maps`;
-      
-      database.ref(`${userPath}/${mapId}`).remove()
-        .then(() => {
-          // Remove from local data
-          delete mindMaps[mapId];
-          
-          // If we're currently viewing the deleted map, switch to default
-          if (currentMapId === mapId) {
-            currentMapId = 'default';
-            // Clear current data
-            nodes = {};
-            edges = [];
-            idCounter = 1;
-            world.querySelectorAll('.node').forEach(n => n.remove());
-            edgesSVG.innerHTML = '';
-            clearSelection();
-            
-            // Create a default node
-            addNode(500, 500, 'Main Topic');
-            updateCurrentMapInfo();
-          }
-          
-          renderMapsList();
-        })
-        .catch((error) => {
-          console.error('Error deleting map:', error);
-          alert('Failed to delete map: ' + error.message);
-        });
-    }
-    
-    // Show the mind map manager UI
-    function showMapManager() {
-      loadMindMapsList();
-      document.getElementById('map-manager-container').style.display = 'flex';
-    }
-    
-    // Hide the mind map manager UI
-    function hideMapManager() {
-      document.getElementById('map-manager-container').style.display = 'none';
-    }
-    
-    // Load data into the application
-    function loadData(data) {
-      // Clear existing nodes and edges
-      world.querySelectorAll('.node').forEach(n => n.remove());
-      edgesSVG.innerHTML = '';
-      nodes = {};
-      edges = data.edges || [];
-      idCounter = data.idCounter || 1;
-      
-      // Create nodes
-      if (data.nodes && data.nodes.length > 0) {
-        data.nodes.forEach(node => {
-          createNodeElement(node);
-          nodes[node.id] = node;
-        });
-      } else {
-        // If no nodes, create a default one
-        addNode(500, 500, 'Main Topic');
-      }
-      
-      // Draw edges
-      drawEdges();
-      
-      // Clear selection
-      clearSelection();
-      
-      // Update current map info
-      updateCurrentMapInfo();
-    }
-    
-    // Create a node element from node data
-    function createNodeElement(node) {
-      const nodeElement = document.createElement('div');
-      nodeElement.className = 'node';
-      nodeElement.dataset.id = node.id;
-      nodeElement.style.left = node.x + 'px';
-      nodeElement.style.top = node.y + 'px';
-      nodeElement.style.backgroundColor = node.color || 'var(--node-bg)';
-      nodeElement.style.borderColor = node.borderColor || 'var(--node-border)';
-      
-      // Add expand/collapse toggle button
-      const expandToggle = document.createElement('div');
-      expandToggle.className = 'expand-toggle';
-      expandToggle.onclick = (e) => {
-        e.stopPropagation();
-        toggleNode(node.id);
-      };
-      nodeElement.appendChild(expandToggle);
-      
-      const contentDiv = document.createElement('div');
-      contentDiv.className = 'node-content';
-      
-      const textDiv = document.createElement('div');
-      textDiv.textContent = node.text;
-      contentDiv.appendChild(textDiv);
-      
-      // Add image if it exists
-      if (node.imageUrl) {
-        const img = document.createElement('img');
-        img.className = 'node-image';
-        img.src = node.imageUrl;
-        img.alt = 'Node image';
-        img.onerror = function() {
-          // If image fails to load, show a placeholder
-          this.style.display = 'none';
-          const placeholder = document.createElement('div');
-          placeholder.className = 'node-image-placeholder';
-          placeholder.textContent = 'Image not found';
-          contentDiv.appendChild(placeholder);
-        };
-        contentDiv.appendChild(img);
-      }
-      
-      nodeElement.appendChild(contentDiv);
-      world.appendChild(nodeElement);
-      
-      // Add event listeners
-      setupNodeEventListeners(nodeElement);
-      
-      return nodeElement;
-    }
-    
-    // Set up event listeners for a node
-    function setupNodeEventListeners(nodeElement) {
-      // Mouse events
-      nodeElement.addEventListener('mousedown', handleNodeMouseDown);
-      
-      // Touch events - UPDATED
-      nodeElement.addEventListener('touchstart', handleNodeTouchStart, { passive: false });
-      nodeElement.addEventListener('touchmove', handleNodeTouchMove, { passive: false });
-      nodeElement.addEventListener('touchend', handleNodeTouchEnd);
-      nodeElement.addEventListener('touchcancel', handleNodeTouchEnd);
-      
-      // Click to select
-      nodeElement.addEventListener('click', (e) => {
-        e.stopPropagation();
-        
-        if (isLongPress) {
-          isLongPress = false;
-          return;
-        }
-        
-        // Don't process clicks on the expand toggle button
-        if (e.target.closest('.expand-toggle')) {
-          return;
-        }
-        
-        const nodeId = nodeElement.dataset.id;
-        
-        if (connectMode) {
-          if (!connectFrom) {
-            connectFrom = nodeId;
-            nodeElement.classList.add('selected');
-            saveToFirebase(); // Auto-save after selecting connection start
-          } else if (connectFrom !== nodeId) {
-            addEdge(connectFrom, nodeId);
-            connectMode = false;
-            document.getElementById('connectBtn').classList.remove('active');
-            clearSelection();
-            saveToFirebase(); // Auto-save after adding connection
-          }
-        } else if (editMode) {
-          selectNode(nodeId);
-          showEditPanel(nodes[nodeId]);
-        } else {
-          selectNode(nodeId);
-        }
-      });
-      
-      // Long press for mobile context menu
-      nodeElement.addEventListener('touchstart', (e) => {
-        if (e.touches.length === 1) {
-          longPressTimer = setTimeout(() => {
-            isLongPress = true;
-            const nodeId = nodeElement.dataset.id;
-            selectNode(nodeId);
-            showContextMenu(e.touches[0].clientX, e.touches[0].clientY, nodes[nodeId]);
-            e.preventDefault();
-          }, 500);
-        }
-      });
-      
-      nodeElement.addEventListener('touchend', () => {
-        clearTimeout(longPressTimer);
-      });
-      
-      nodeElement.addEventListener('touchmove', () => {
-        clearTimeout(longPressTimer);
-      });
-    }
-    
-    // Add a new node
-    function addNode(x, y, text) {
-      const id = idCounter++;
-      const node = {
-        id: id,
-        x: x,
-        y: y,
-        text: text || 'New Node',
-        color: 'var(--node-bg)',
-        borderColor: 'var(--node-border)',
-        expanded: true // Default to expanded
-      };
-      
-      nodes[id] = node;
-      createNodeElement(node);
-      
-      return node;
-    }
-    
-    // Add an edge between two nodes
-    function addEdge(fromId, toId) {
-      // Check if edge already exists
-      if (edges.some(edge => edge.from === fromId && edge.to === toId)) {
-        return;
-      }
-      
-      edges.push({ from: fromId, to: toId });
-      drawEdges();
-    }
-    
-    // Draw all edges
-    function drawEdges() {
-      edgesSVG.innerHTML = '';
-      
-      edges.forEach(edge => {
-        const fromNode = nodes[edge.from];
-        const toNode = nodes[edge.to];
-        
-        if (fromNode && toNode) {
-          // Check if either node is collapsed and should hide connections
-          if (isNodeHiddenByCollapse(fromNode.id) || isNodeHiddenByCollapse(toNode.id)) {
-            return;
-          }
-          
-          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-          line.setAttribute('class', 'connection');
-          line.setAttribute('x1', fromNode.x + 65);
-          line.setAttribute('y1', fromNode.y + 20);
-          line.setAttribute('x2', toNode.x + 65);
-          line.setAttribute('y2', toNode.y + 20);
-          line.setAttribute('data-from', fromNode.id);
-          line.setAttribute('data-to', toNode.id);
-          
-          edgesSVG.appendChild(line);
-        }
-      });
-    }
-    
-    // Select a node
-    function selectNode(nodeId) {
-      clearSelection();
-      
-      const nodeElement = document.querySelector(`.node[data-id="${nodeId}"]`);
-      if (nodeElement) {
-        nodeElement.classList.add('selected');
-        selectedNode = nodes[nodeId];
-        
-        // Highlight connected edges
-        document.querySelectorAll(`line[data-from="${nodeId}"], line[data-to="${nodeId}"]`).forEach(line => {
-          line.classList.add('highlight');
-        });
-      }
-    }
-    
-    // Clear selection
-    function clearSelection() {
-      document.querySelectorAll('.node.selected').forEach(node => {
-        node.classList.remove('selected');
-      });
-      
-      document.querySelectorAll('.connection.highlight').forEach(line => {
-        line.classList.remove('highlight');
-      });
-      
-      selectedNode = null;
-      connectFrom = null;
-    }
-    
-    // Delete selected node or edge
-    function deleteSelected() {
-      if (selectedNode) {
-        // Delete the node and its connections
-        const nodeId = selectedNode.id;
-        
-        // Remove node from DOM
-        const nodeElement = document.querySelector(`.node[data-id="${nodeId}"]`);
-        if (nodeElement) {
-          nodeElement.remove();
-        }
-        
-        // Remove node from data
-        delete nodes[nodeId];
-        
-        // Remove any edges connected to this node
-        edges = edges.filter(edge => edge.from !== nodeId && edge.to !== nodeId);
-        
-        // Redraw edges
-        drawEdges();
-        
-        // Clear selection
-        clearSelection();
-      }
-    }
-    
-    // Show edit panel for a node
-    function showEditPanel(node) {
-      const editPanel = document.getElementById('edit-panel');
-      const editTextarea = document.getElementById('edit-textarea');
-      const overlay = document.getElementById('overlay');
-      
-      editTextarea.value = node.text;
-      editPanel.style.display = 'block';
-      overlay.style.display = 'block';
-      
-      // Store which node we're editing
-      editPanel.dataset.editingNode = node.id;
-    }
-    
-    // Close edit panel
-    function closeEditPanel() {
-      document.getElementById('edit-panel').style.display = 'none';
-      document.getElementById('overlay').style.display = 'none';
-    }
-    
-    // Save changes from edit panel
-    function saveEditPanel() {
-      const editPanel = document.getElementById('edit-panel');
-      const editTextarea = document.getElementById('edit-textarea');
-      const nodeId = editPanel.dataset.editingNode;
-      
-      if (nodeId && nodes[nodeId]) {
-        // Update the node text in the data model
-        nodes[nodeId].text = editTextarea.value;
-        
-        // Update the node text in the DOM
-        const nodeElement = document.querySelector(`.node[data-id="${nodeId}"] .node-content div`);
-        if (nodeElement) {
-          nodeElement.textContent = editTextarea.value;
-        }
-      }
-      
-      closeEditPanel();
-    }
-    
-    // Show color menu - Fixed to properly display the color picker
-    function showColorMenu() {
-      if (!selectedNode) return;
-      
-      const colors = [
-        '#2c3e50', '#34495e', '#16a085', '#27ae60', '#2980b9',
-        '#8e44ad', '#2c3e50', '#f39c12', '#d35400', '#c0392b',
-        '#7f8c8d', '#1abc9c', '#3498db', '#9b59b6', '#e74c3c'
-      ];
-      
-      // Create color picker menu
-      hideContextMenu();
-      const menu = document.createElement('div');
-      menu.className = 'context-menu color-context-menu'; // Added specific class
-      menu.innerHTML = '<div style="padding: 10px; font-weight: bold;">Choose Color</div>';
-      
-      const colorGrid = document.createElement('div');
-      colorGrid.className = 'color-picker';
-      
-      colors.forEach(color => {
-        const colorOption = document.createElement('div');
-        colorOption.className = 'color-option';
-        colorOption.style.backgroundColor = color;
-        colorOption.onclick = () => {
-          changeNodeColor(selectedNode.id, color);
-          hideContextMenu();
-          saveToFirebase(); // Auto-save after color change
-        };
-        colorGrid.appendChild(colorOption);
-      });
-      
-      menu.appendChild(colorGrid);
-      document.body.appendChild(menu);
-      
-      // Position menu near selected node
-      const nodeElement = document.querySelector(`.node[data-id="${selectedNode.id}"]`);
-      if (nodeElement) {
-        const rect = nodeElement.getBoundingClientRect();
-        menu.style.left = (rect.right + 10) + 'px';
-        menu.style.top = (rect.top - 40) + 'px';
-      }
-      
-      // Prevent clicks on the color menu from closing it
-      menu.addEventListener('click', (e) => {
-        e.stopPropagation();
-      });
-    }
-    
-    // Change node color
-    function changeNodeColor(nodeId, color) {
-      if (nodes[nodeId]) {
-        nodes[nodeId].color = color;
-        const nodeElement = document.querySelector(`.node[data-id="${nodeId}"]`);
-        if (nodeElement) {
-          nodeElement.style.backgroundColor = color;
-        }
-      }
-    }
-    
-    // Show image panel for a node
-    function showImagePanel(node) {
-      const imagePanel = document.getElementById('image-panel');
-      const imageUrlInput = document.getElementById('image-url-input');
-      const imagePreview = document.getElementById('image-preview');
-      const overlay = document.getElementById('overlay');
-      const removeBtn = document.getElementById('image-panel-remove');
-      
-      // Set current URL if exists
-      imageUrlInput.value = node.imageUrl || '';
-      
-      // Show preview if URL exists
-      if (node.imageUrl) {
-        imagePreview.src = node.imageUrl;
-        imagePreview.style.display = 'block';
-        removeBtn.style.display = 'block';
-      } else {
-        imagePreview.style.display = 'none';
-        removeBtn.style.display = 'none';
-      }
-      
-      imagePanel.style.display = 'block';
-      overlay.style.display = 'block';
-      
-      // Store which node we're editing
-      imagePanel.dataset.editingNode = node.id;
-      imageEditingNodeId = node.id;
-    }
-    
-    // Close image panel
-    function closeImagePanel() {
-      document.getElementById('image-panel').style.display = 'none';
-      document.getElementById('overlay').style.display = 'none';
-      document.getElementById('image-url-input').value = '';
-      document.getElementById('image-preview').style.display = 'none';
-      document.getElementById('image-preview').src = '';
-      document.getElementById('image-file-input').value = '';
-      imageEditingNodeId = null;
-    }
-    
-    // Handle image URL input - UPDATED to better handle image URLs
-    function handleImageUrlInput() {
-      const url = document.getElementById('image-url-input').value.trim();
-      const imagePreview = document.getElementById('image-preview');
-      const removeBtn = document.getElementById('image-panel-remove');
-      
-      if (url) {
-        // Validate URL - more permissive check for various image URLs
-        if (isValidImageUrl(url)) {
-          // Create a test image to check if it loads successfully
-          const testImage = new Image();
-          testImage.onload = function() {
-            imagePreview.src = url;
-            imagePreview.style.display = 'block';
-            removeBtn.style.display = 'block';
-          };
-          testImage.onerror = function() {
-            alert('The image URL is valid but the image failed to load. Please check the URL and try again.');
-            imagePreview.style.display = 'none';
-            removeBtn.style.display = 'none';
-          };
-          testImage.src = url;
-        } else {
-          alert('Please enter a valid image URL (jpg, png, gif, webp, or other common image formats)');
-        }
-      } else {
-        imagePreview.style.display = 'none';
-        removeBtn.style.display = 'none';
-      }
-    }
-    
-    // Check if URL is a valid image - UPDATED to be more permissive
-    function isValidImageUrl(url) {
-      // Allow any URL that starts with http, https, or data URI
-      if (!/^(https?|data):/i.test(url)) {
-        return false;
-      }
-      
-      // Check for common image file extensions
-      if (/\.(jpeg|jpg|gif|png|webp|bmp|svg|tiff?)$/i.test(url)) {
-        return true;
-      }
-      
-      // Check for data URI with image type
-      if (/^data:image\/(jpeg|jpg|gif|png|webp|bmp|svg\+xml|tiff?);base64,/i.test(url)) {
-        return true;
-      }
-      
-      // Allow URLs without extensions (they might be from image hosting services)
-      // We'll let the image loading test determine if it's valid
-      return true;
-    }
-    
-    // Handle image upload
-    function handleImageUpload(e) {
-      const file = e.target.files[0];
-      if (file) {
-        previewImageFile(file);
-      }
-    }
-    
-    // Preview image file
-    function previewImageFile(file) {
-      if (!file.type.startsWith('image/')) {
-        alert('Please select an image file.');
-        return;
-      }
-      
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const imagePreview = document.getElementById('image-preview');
-        const imageUrlInput = document.getElementById('image-url-input');
-        const removeBtn = document.getElementById('image-panel-remove');
-        
-        imagePreview.src = e.target.result;
-        imagePreview.style.display = 'block';
-        imageUrlInput.value = e.target.result; // Set as data URL
-        removeBtn.style.display = 'block';
-      };
-      reader.readAsDataURL(file);
-    }
-    
-    // Save image from panel
-    function saveImagePanel() {
-      const imageUrl = document.getElementById('image-url-input').value.trim();
-      const nodeId = document.getElementById('image-panel').dataset.editingNode;
-      
-      if (nodeId && nodes[nodeId]) {
-        if (imageUrl) {
-          // Validate URL
-          if (!isValidImageUrl(imageUrl)) {
-            alert('Please enter a valid image URL (jpg, png, gif, webp, or other common image formats)');
-            return;
-          }
-          
-          // Update the node image in the data model
-          nodes[nodeId].imageUrl = imageUrl;
-          
-          // Update the node image in the DOM
-          updateNodeImage(nodeId, imageUrl);
-        } else {
-          // Remove image if URL is empty
-          nodes[nodeId].imageUrl = '';
-          removeNodeImageFromDOM(nodeId);
-        }
-        
-        saveToFirebase(); // Auto-save after image change
-      }
-      
-      closeImagePanel();
-    }
-    
-    // Update node image in DOM
-    function updateNodeImage(nodeId, imageUrl) {
-      const nodeElement = document.querySelector(`.node[data-id="${nodeId}"]`);
-      if (nodeElement) {
-        // Remove existing image if any
-        const existingImg = nodeElement.querySelector('.node-image');
-        const existingPlaceholder = nodeElement.querySelector('.node-image-placeholder');
-        if (existingImg) {
-          existingImg.remove();
-        }
-        if (existingPlaceholder) {
-          existingPlaceholder.remove();
-        }
-        
-        // Add new image
-        if (imageUrl) {
-          const img = document.createElement('img');
-          img.className = 'node-image';
-          img.src = imageUrl;
-          img.alt = 'Node image';
-          img.onerror = function() {
-            // If image fails to load, show a placeholder
-            this.style.display = 'none';
-            const placeholder = document.createElement('div');
-            placeholder.className = 'node-image-placeholder';
-            placeholder.textContent = 'Image not found';
-            nodeElement.querySelector('.node-content').appendChild(placeholder);
-          };
-          
-          const contentDiv = nodeElement.querySelector('.node-content');
-          contentDiv.appendChild(img);
-        }
-      }
-    }
-    
-    // Remove node image from DOM
-    function removeNodeImageFromDOM(nodeId) {
-      const nodeElement = document.querySelector(`.node[data-id="${nodeId}"]`);
-      if (nodeElement) {
-        const existingImg = nodeElement.querySelector('.node-image');
-        const existingPlaceholder = nodeElement.querySelector('.node-image-placeholder');
-        if (existingImg) {
-          existingImg.remove();
-        }
-        if (existingPlaceholder) {
-          existingPlaceholder.remove();
-        }
-      }
-    }
-    
-    // Remove image from node
-    function removeNodeImage() {
-      const nodeId = document.getElementById('image-panel').dataset.editingNode;
-      
-      if (nodeId && nodes[nodeId]) {
-        // Remove the node image in the data model
-        nodes[nodeId].imageUrl = '';
-        
-        // Remove the node image in the DOM
-        removeNodeImageFromDOM(nodeId);
-        
-        saveToFirebase(); // Auto-save after image removal
-      }
-      
-      closeImagePanel();
-    }
-    
-    // Export data as JSON
-    function exportData() {
-      const data = {
-        nodes: Object.values(nodes),
-        edges: edges,
-        idCounter: idCounter
-      };
-      
-      const dataStr = JSON.stringify(data, null, 2);
-      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-      
-      const exportFileDefaultName = 'mindmap.json';
-      
-      const linkElement = document.createElement('a');
-      linkElement.setAttribute('href', dataUri);
-      linkElement.setAttribute('download', exportFileDefaultName);
-      linkElement.click();
-    }
-    
-    // Create import input if it doesn't exist
-    function createImportInput() {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.id = 'importInput';
-      input.accept = '.json';
-      input.style.display = 'none';
-      input.onchange = handleImport;
-      document.body.appendChild(input);
-      input.click();
-    }
-    
-    // Handle imported file
-    function handleImport(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = JSON.parse(e.target.result);
-          loadData(data);
-          saveToFirebase(); // Save imported data to Firebase
-        } catch (error) {
-          alert('Error parsing JSON file: ' + error.message);
-        }
-      };
-      reader.readAsText(file);
-    }
-    
-    // Apply layout to nodes
-    function applyLayout(type) {
-      const centerX = 500;
-      const centerY = 500;
-      const nodeValues = Object.values(nodes);
-      
-      if (type === 'horizontal') {
-        // Simple horizontal layout with root in center
-        const root = nodeValues[0] || addNode(centerX, centerY, 'Main Topic');
-        root.x = centerX;
-        root.y = centerY;
-        
-        let xOffset = 200;
-        nodeValues.forEach((node, i) => {
-          if (node.id !== root.id) {
-            node.x = centerX + xOffset;
-            node.y = centerY + (i % 2 === 0 ? -100 : 100);
-            xOffset += 200;
-          }
-        });
-      } else if (type === 'vertical') {
-        // Simple vertical layout with root in center
-        const root = nodeValues[0] || addNode(centerX, centerY, 'Main Topic');
-        root.x = centerX;
-        root.y = centerY;
-        
-        let yOffset = 100;
-        nodeValues.forEach((node, i) => {
-          if (node.id !== root.id) {
-            node.x = centerX + (i % 2 === 0 ? -150 : 150);
-            node.y = centerY + yOffset;
-            yOffset += 100;
-          }
-        });
-      } else if (type === 'radial') {
-        // Simple radial layout
-        const root = nodeValues[0] || addNode(centerX, centerY, 'Main Topic');
-        root.x = centerX;
-        root.y = centerY;
-        
-        const radius = 200;
-        const angleStep = (2 * Math.PI) / (nodeValues.length - 1);
-        
-        let angle = 0;
-        nodeValues.forEach(node => {
-          if (node.id !== root.id) {
-            node.x = centerX + radius * Math.cos(angle);
-            node.y = centerY + radius * Math.sin(angle);
-            angle += angleStep;
-          }
-        });
-      }
-      
-      // Update node positions in DOM
-      nodeValues.forEach(node => {
-        const nodeElement = document.querySelector(`.node[data-id="${node.id}"]`);
-        if (nodeElement) {
-          nodeElement.style.left = node.x + 'px';
-          nodeElement.style.top = node.y + 'px';
-        }
-      });
-      
-      // Redraw edges
-      drawEdges();
-    }
-    
-    // Search nodes
-    function searchNodes(query) {
-      clearSelection();
-      
-      if (!query) {
-        // Reset all nodes if search is empty
-        Object.values(nodes).forEach(node => {
-          const nodeElement = document.querySelector(`.node[data-id="${node.id}"]`);
-          if (nodeElement) {
-            nodeElement.style.opacity = 1;
-          }
-        });
-        return;
-      }
-      
-      const lowerQuery = query.toLowerCase();
-      
-      Object.values(nodes).forEach(node => {
-        const nodeElement = document.querySelector(`.node[data-id="${node.id}"]`);
-        if (nodeElement) {
-          if (node.text.toLowerCase().includes(lowerQuery)) {
-            nodeElement.style.opacity = 1;
-          } else {
-            nodeElement.style.opacity = 0.3;
-          }
-        }
-      });
-    }
-    
-    // Adjust zoom level with center point
-    function adjustZoom(delta, centerX, centerY) {
-      // If center coordinates are not provided, use the center of the stage
-      const stageRect = stage.getBoundingClientRect();
-      if (centerX === undefined) centerX = stageRect.width / 2;
-      if (centerY === undefined) centerY = stageRect.height / 2;
-      
-      // Calculate the current scroll position
-      const scrollX = stage.scrollLeft;
-      const scrollY = stage.scrollTop;
-      
-      // Calculate the cursor position relative to the world
-      const cursorX = scrollX + centerX;
-      const cursorY = scrollY + centerY;
-      
-      // Calculate the new scale
-      const newScale = Math.max(0.1, Math.min(5, scale + delta));
-      
-      // Calculate the zoom factor
-      const zoomFactor = newScale / scale;
-      
-      // Adjust the scroll position to zoom towards the cursor
-      stage.scrollLeft = cursorX * zoomFactor - centerX;
-      stage.scrollTop = cursorY * zoomFactor - centerY;
-      
-      // Apply the new scale
-      scale = newScale;
-      world.style.transform = `scale(${scale})`;
-      
-      updateZoomDisplay();
-    }
-    
-    // Update zoom display
-    function updateZoomDisplay() {
-      document.getElementById('zoom-display').textContent = Math.round(scale * 100) + '%';
-    }
-    
-    // Reset view
-    function resetView() {
-      scale = 1;
-      world.style.transform = 'scale(1)';
-      stage.scrollLeft = 0;
-      stage.scrollTop = 0;
-      updateZoomDisplay();
-    }
-    
-    // Handle mouse wheel for zooming
-    function handleWheel(e) {
-      e.preventDefault();
-      
-      if (e.ctrlKey) {
-        // Zoom with Ctrl+Wheel
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        adjustZoom(delta, e.clientX, e.clientY);
-      } else {
-        // Pan with regular wheel
-        stage.scrollLeft += e.deltaX;
-        stage.scrollTop += e.deltaY;
-      }
-    }
-    
-    // Start panning
-    function startPan(e) {
-      if (e.button !== 1 && !e.touches) return; // Only middle mouse button or touch
-      
-      panning = true;
-      startX = e.clientX || e.touches[0].clientX;
-      startY = e.clientY || e.touches[0].clientY;
-      lastX = stage.scrollLeft;
-      lastY = stage.scrollTop;
-      
-      e.preventDefault();
-    }
-    
-    // Handle panning
-    function handlePan(e) {
-      if (!panning) return;
-      
-      const x = e.clientX || (e.touches && e.touches[0].clientX);
-      const y = e.clientY || (e.touches && e.touches[0].clientY);
-      
-      if (x === undefined || y === undefined) return;
-      
-      const dx = x - startX;
-      const dy = y - startY;
-      
-      stage.scrollLeft = lastX - dx;
-      stage.scrollTop = lastY - dy;
-      
-      e.preventDefault();
-    }
-    
-    // Stop panning
-    function stopPan() {
-      panning = false;
-    }
-    
-    // Set up touch events - UPDATED
-    function setupTouchEvents() {
-      // Use a single touch event handler for the stage to avoid conflicts
-      const stage = document.getElementById('stage');
-      
-      stage.addEventListener('touchstart', (e) => {
-        // If touching a node, let the node handle it
-        if (e.target.closest('.node')) {
-          return;
-        }
-        
-        if (e.touches.length === 2) {
-          // Pinch to zoom
-          initialPinchDistance = getDistance(
-            e.touches[0].clientX, e.touches[0].clientY,
-            e.touches[1].clientX, e.touches[1].clientY
-          );
-          
-          // Calculate the center point between the two touches
-          zoomCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-          zoomCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-          
-          e.preventDefault();
-        } else if (e.touches.length === 1) {
-          // Start panning
-          startPan(e);
-        }
-      }, { passive: false });
-      
-      stage.addEventListener('touchmove', (e) => {
-        // If touching a node, let the node handle it
-        if (e.target.closest('.node')) {
-          return;
-        }
-        
-        if (e.touches.length === 2) {
-          // Handle pinch zoom
-          const currentDistance = getDistance(
-            e.touches[0].clientX, e.touches[0].clientY,
-            e.touches[1].clientX, e.touches[1].clientY
-          );
-          
-          if (initialPinchDistance !== null) {
-            const delta = (currentDistance - initialPinchDistance) / 100;
-            adjustZoom(delta * 0.1, zoomCenterX, zoomCenterY);
-            initialPinchDistance = currentDistance;
-          }
-          
-          e.preventDefault();
-        } else if (e.touches.length === 1 && panning) {
-          handlePan(e);
-        }
-      }, { passive: false });
-      
-      stage.addEventListener('touchend', (e) => {
-        // If touching a node, let the node handle it
-        if (e.target.closest('.node')) {
-          return;
-        }
-        
-        initialPinchDistance = null;
-        stopPan();
-      });
-      
-      stage.addEventListener('touchcancel', (e) => {
-        // If touching a node, let the node handle it
-        if (e.target.closest('.node')) {
-          return;
-        }
-        
-        initialPinchDistance = null;
-        stopPan();
-      });
-    }
-    
-    // Calculate distance between two points
-    function getDistance(x1, y1, x2, y2) {
-      return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-    }
-    
-    // Handle node mouse down for dragging
-    function handleNodeMouseDown(e) {
-      if (e.button !== 0) return; // Only left mouse button
-      
-      const nodeElement = e.target.closest('.node');
-      if (!nodeElement) return;
-      
-      const nodeId = nodeElement.dataset.id;
-      const node = nodes[nodeId];
-      if (!node) return;
-      
-      // Select the node
-      selectNode(nodeId);
-      
-      // Start dragging
-      isDraggingNode = true;
-      const offsetX = e.clientX - node.x;
-      const offsetY = e.clientY - node.y;
-      
-      function handleMouseMove(e) {
-        node.x = e.clientX - offsetX;
-        node.y = e.clientY - offsetY;
-        nodeElement.style.left = node.x + 'px';
-        nodeElement.style.top = node.y + 'px';
-        
-        // Update edges
-        drawEdges();
-      }
-      
-      function handleMouseUp() {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-        isDraggingNode = false;
-      }
-      
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      
-      e.preventDefault();
-    }
-    
-    // Handle node touch start for dragging on mobile - UPDATED
-    function handleNodeTouchStart(e) {
-      if (e.touches.length !== 1) return;
-      
-      const nodeElement = e.target.closest('.node');
-      if (!nodeElement) return;
-      
-      const nodeId = nodeElement.dataset.id;
-      const node = nodes[nodeId];
-      if (!node) return;
-      
-      // Select the node
-      selectNode(nodeId);
-      
-      // Start dragging
-      isDraggingNode = true;
-      const touch = e.touches[0];
-      initialTouchPositions = {
-        touchX: touch.clientX,
-        touchY: touch.clientY,
-        nodeX: node.x,
-        nodeY: node.y
-      };
-      
-      e.preventDefault();
-    }
-    
-    // Handle node touch move for dragging on mobile - UPDATED
-    function handleNodeTouchMove(e) {
-      if (!initialTouchPositions || e.touches.length !== 1) return;
-      
-      const nodeElement = e.target.closest('.node');
-      if (!nodeElement) return;
-      
-      const nodeId = nodeElement.dataset.id;
-      const node = nodes[nodeId];
-      if (!node) return;
-      
-      const touch = e.touches[0];
-      const dx = touch.clientX - initialTouchPositions.touchX;
-      const dy = touch.clientY - initialTouchPositions.touchY;
-      
-      node.x = initialTouchPositions.nodeX + dx;
-      node.y = initialTouchPositions.nodeY + dy;
-      nodeElement.style.left = node.x + 'px';
-      nodeElement.style.top = node.y + 'px';
-      
-      // Update edges
-      drawEdges();
-      
-      e.preventDefault();
-    }
-    
-    // Handle node touch end for dragging on mobile - UPDATED
-    function handleNodeTouchEnd(e) {
-      // Only save if we were actually dragging a node
-      if (isDraggingNode) {
-        saveToFirebase();
-        isDraggingNode = false;
-      }
-      initialTouchPositions = null;
-    }
-    
-    // Handle context menu
-    function handleContextMenu(e) {
-      e.preventDefault();
-      
-      const node = e.target.closest('.node');
-      if (node) {
-        const nodeId = node.dataset.id;
-        selectNode(nodeId);
-        showContextMenu(e.clientX, e.clientY, nodes[nodeId]);
-      } else {
-        hideContextMenu();
-      }
-    }
-    
-    // Show context menu - FIXED: Hide menu after selecting an option
-    function showContextMenu(x, y, node) {
-      hideContextMenu();
-      
-      const menu = document.createElement('div');
-      menu.className = 'context-menu';
-      
-      const menuItems = [
-        { text: 'Edit', action: () => showEditPanel(node) },
-        { text: 'Change Color', action: () => showColorMenu() },
-        { text: 'Add Image', action: () => showImagePanel(node) },
-        { text: 'Delete', action: () => { deleteSelected(); saveToFirebase(); } },
-        { text: 'Add Child Node', action: () => {
-          const childX = node.x + 200;
-          const childY = node.y;
-          const childNode = addNode(childX, childY, 'Child Node');
-          addEdge(node.id, childNode.id);
-          saveToFirebase(); // Auto-save after adding child
-        }},
-        { text: nodes[node.id].expanded ? 'Collapse' : 'Expand', action: () => {
-          toggleNode(node.id);
-        }}
-      ];
-      
-      // If node has an image, add option to remove it
-      if (node.imageUrl) {
-        menuItems.splice(3, 0, { text: 'Remove Image', action: () => {
-          node.imageUrl = '';
-          removeNodeImageFromDOM(node.id);
-          saveToFirebase();
-        }});
-      }
-      
-      menuItems.forEach(item => {
-        const menuItem = document.createElement('div');
-        menuItem.className = 'context-menu-item';
-        menuItem.textContent = item.text;
-        menuItem.onclick = () => {
-          item.action();
-          hideContextMenu(); // Hide menu after selecting an option
-        };
-        menu.appendChild(menuItem);
-      });
-      
-      document.body.appendChild(menu);
-      
-      // Position menu
-      menu.style.left = x + 'px';
-      menu.style.top = y + 'px';
-    }
-    
-    // Hide context menu
-    function hideContextMenu() {
-      const menus = document.querySelectorAll('.context-menu');
-      if (menus) {
-        menus.forEach(menu => menu.remove());
-      }
-    }
-    
-    // EXPAND/COLLAPSE FUNCTIONALITY
-    
-    // Toggle expand/collapse for a specific node
-    function toggleNode(nodeId) {
-      if (!nodes[nodeId]) return;
-      
-      // Toggle the expanded state
-      nodes[nodeId].expanded = !nodes[nodeId].expanded;
-      
-      // Update the UI
-      const nodeElement = document.querySelector(`.node[data-id="${nodeId}"]`);
-      if (nodeElement) {
-        if (nodes[nodeId].expanded) {
-          nodeElement.classList.remove('collapsed');
-        } else {
-          nodeElement.classList.add('collapsed');
-        }
-      }
-      
-      // Update visibility of child nodes and edges
-      updateNodeVisibility(nodeId);
-      
-      // Save to Firebase
-      saveToFirebase();
-    }
-    
-    // Check if a node is hidden due to a parent being collapsed
-    function isNodeHiddenByCollapse(nodeId) {
-      let currentId = nodeId;
-      
-      // Traverse up the hierarchy to see if any parent is collapsed
-      while (currentId) {
-        const node = nodes[currentId];
-        if (!node || !node.expanded) {
-          return true;
-        }
-        
-        // Find the parent of this node (if any)
-        const parentEdge = edges.find(edge => edge.to == currentId);
-        if (!parentEdge) {
-          break; // No parent found, we've reached the root
-        }
-        
-        currentId = parentEdge.from;
-      }
-      
-      return false;
-    }
-    
-    // Update visibility for a node and its children
-    function updateNodeVisibility(nodeId) {
-      const node = nodes[nodeId];
-      if (!node) return;
-      
-      const nodeElement = document.querySelector(`.node[data-id="${nodeId}"]`);
-      if (!nodeElement) return;
-      
-      // Show or hide based on expanded state
-      if (node.expanded) {
-        nodeElement.classList.remove('collapsed');
-      } else {
-        nodeElement.classList.add('collapsed');
-      }
-      
-      // Get all direct children of this node
-      const childEdges = edges.filter(edge => edge.from == nodeId);
-      
-      for (const edge of childEdges) {
-        const childId = edge.to;
-        const childNode = nodes[childId];
-        if (childNode) {
-          const childElement = document.querySelector(`.node[data-id="${childId}"]`);
-          if (childElement) {
-            // If parent is collapsed, hide the child regardless of its own state
-            if (!node.expanded || isNodeHiddenByCollapse(nodeId)) {
-              childElement.style.display = 'none';
-            } else {
-              childElement.style.display = 'block';
-              // Recursively update children
-              updateNodeVisibility(childId);
-            }
-          }
-        }
-      }
-      
-      // Redraw edges to reflect visibility changes
-      drawEdges();
-    }
-    
-    // Toggle expand/collapse for all nodes
-    function toggleExpandCollapse() {
-      const hasCollapsedNodes = Object.values(nodes).some(node => !node.expanded);
-      
-      // Toggle all nodes to the opposite state
-      Object.values(nodes).forEach(node => {
-        node.expanded = hasCollapsedNodes;
-        const nodeElement = document.querySelector(`.node[data-id="${node.id}"]`);
-        if (nodeElement) {
-          if (node.expanded) {
-            nodeElement.classList.remove('collapsed');
-          } else {
-            nodeElement.classList.add('collapsed');
-          }
-        }
-      });
-      
-      // Update visibility for all nodes
-      Object.keys(nodes).forEach(nodeId => {
-        updateNodeVisibility(nodeId);
-      });
-      
-      // Save to Firebase
-      saveToFirebase();
-    }
-    
-    // Initialize the app
-    init();
-  </script>
+function hidden(){var h={};Object.values(S.nodes).forEach(function(n){var p=n.parent;while(p&&S.nodes[p]){if(S.nodes[p].collapsed){h[n.id]=1;break}p=S.nodes[p].parent}});return h}
+function prog(id){var l=subtree(id).slice(1);return[l.filter(function(i){return S.nodes[i].done}).length,l.length]}
+function today(){var d=new Date();return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)}
+function fmt(t){return new Date(t+'T00:00').toLocaleDateString(undefined,{day:'numeric',month:'short'})}
+function applyView(){var v=S.view;world.style.transform='translate('+v.x+'px,'+v.y+'px) scale('+v.k+')'}
+function center(id){var n=S.nodes[id],e=el(id);return[n.x+(e?e.offsetWidth:80)/2,n.y+(e?e.offsetHeight:36)/2]}
+function lines(){
+  var h='';
+  Object.values(S.nodes).forEach(function(n){
+    if(!n.parent||!S.nodes[n.parent]||!el(n.id)||!el(n.parent))return;
+    var a=center(n.parent),b=center(n.id),mx=(a[0]+b[0])/2;
+    h+='<path d="M'+a[0]+','+a[1]+' C'+mx+','+a[1]+' '+mx+','+b[1]+' '+b[0]+','+b[1]+'" stroke="'+COLORS[n.color]+'"/>';
+  });
+  svg.innerHTML=h;
+}
+function render(){
+  world.querySelectorAll('.n').forEach(function(e){e.remove()});
+  var hid=hidden(),td=today(),ql=q.toLowerCase();
+  Object.values(S.nodes).forEach(function(n){
+    if(hid[n.id])return;
+    var e=document.createElement('div'),bd='',pg=prog(n.id);
+    e.className='n'+(n.id===S.root?' root':'')+(n.done?' done':'')+(n.id===sel?' sel':'')+(ql&&(n.text+' '+(n.note||'')).toLowerCase().indexOf(ql)<0?' dim':'');
+    if(n.pri)bd+='<i class="p p'+n.pri+'"></i>';
+    if(n.due)bd+='<b class="'+(!n.done&&n.due<td?'late':'')+'">'+fmt(n.due)+'</b>';
+    if(pg[1])bd+='<b>'+pg[0]+'/'+pg[1]+'</b>';
+    if(n.collapsed&&pg[1])bd+='<b>+'+pg[1]+'</b>';
+    if(n.note)bd+='<b>note</b>';
+    e.innerHTML='<span class="t"></span>'+(bd?'<span class="b">'+bd+'</span>':'');
+    e.firstChild.textContent=n.text;
+    e.dataset.id=n.id;e.style.left=n.x+'px';e.style.top=n.y+'px';
+    e.style.setProperty('--c',COLORS[n.color]);world.appendChild(e);
+  });
+  lines();applyView();syncPanel();
+}
+function syncPanel(){
+  var n=sel&&S.nodes[sel],p=document.getElementById('panel');
+  document.getElementById('bDone').textContent=n&&n.done?'Mark open':'Mark done';
+  document.getElementById('bCol').textContent=n&&n.collapsed?'Expand':'Collapse';
+  p.hidden=!n;if(!n)return;
+  document.getElementById('pDue').value=n.due||'';document.getElementById('pPri').value=n.pri||0;
+  var nt=document.getElementById('pNote');if(document.activeElement!==nt)nt.value=n.note||'';
+}
+function select(id){sel=id;render()}
+
+function addNode(parentId,text){
+  var p=S.nodes[parentId],id=uid(),sib=kids(parentId);p.collapsed=false;
+  var y=sib.length?Math.max.apply(null,sib.map(function(c){return c.y}))+62:p.y;
+  var color=parentId===S.root?(sib.length+1)%COLORS.length:p.color;
+  S.nodes[id]={id:id,text:text||'New idea',x:p.x+(el(parentId)?el(parentId).offsetWidth:100)+90,y:y,parent:parentId,color:color,done:false};
+  sel=id;render();save();startEdit(id,true);
+}
+function addChild(){if(sel)addNode(sel)}
+function addSibling(){if(!sel)return;var n=S.nodes[sel];addNode(n.parent||sel)}
+function ask(msg,label,go){
+  var o=document.createElement('div');
+  o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:9';
+  o.innerHTML='<div role="alertdialog" style="background:var(--bar);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:18px;max-width:320px"><p style="margin:0 0 14px"></p><div style="display:flex;gap:8px;justify-content:flex-end"><button class="x">Cancel</button><button class="y" style="background:var(--ink);color:var(--bg)"></button></div></div>';
+  o.querySelector('p').textContent=msg;o.querySelector('.y').textContent=label;
+  function close(){o.remove()}
+  o.querySelector('.x').onclick=close;o.onclick=function(e){if(e.target===o)close()};
+  o.querySelector('.y').onclick=function(){close();go()};
+  document.body.appendChild(o);o.querySelector('.x').focus();
+}
+function del(){
+  if(!sel||sel===S.root)return;
+  var ids=subtree(sel),p=S.nodes[sel].parent;
+  function go(){ids.forEach(function(i){delete S.nodes[i]});sel=p;render();save()}
+  if(ids.length>1)ask('Delete this idea and its '+(ids.length-1)+' sub-ideas?','Delete',go);else go();
+}
+function toggleDone(){if(!sel)return;S.nodes[sel].done=!S.nodes[sel].done;render();save()}
+function setColor(i){if(!sel)return;subtree(sel).forEach(function(id){S.nodes[id].color=i});render();save()}
+
+function startEdit(id,selectAll){
+  var e=el(id);if(!e)return;e=e.querySelector('.t');var old=S.nodes[id].text,done=false;editing=true;
+  e.contentEditable='true';e.focus();
+  var r=document.createRange();r.selectNodeContents(e);var s=getSelection();s.removeAllRanges();s.addRange(r);
+  function finish(cancel){if(done)return;done=true;editing=false;
+    var t=cancel?old:(e.textContent.trim()||'Untitled');S.nodes[id].text=t;render();save();}
+  e.onblur=function(){finish(false)};
+  e.onkeydown=function(ev){
+    if(ev.key==='Enter'&&!ev.shiftKey){ev.preventDefault();finish(false)}
+    else if(ev.key==='Escape'){ev.preventDefault();finish(true)}
+    ev.stopPropagation();
+  };
+}
+
+function tidy(nofit){
+  var row=0,GAP=64,DX=60;
+  function place(id,x){
+    var e=el(id),n=S.nodes[id],c=n.collapsed?[]:kids(id).sort(function(a,b){return a.y-b.y});n.x=x;
+    var w=e?e.offsetWidth:100;
+    if(!c.length){n.y=row*GAP;row++;return}
+    c.forEach(function(k){place(k.id,x+w+DX)});
+    n.y=(S.nodes[c[0].id].y+S.nodes[c[c.length-1].id].y)/2;
+  }
+  place(S.root,0);render();save();if(!nofit)fit();
+}
+function fit(){
+  var ns=Object.values(S.nodes),x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  ns.forEach(function(n){var e=el(n.id);if(!e)return;var w=e.offsetWidth,h=e.offsetHeight;
+    x0=Math.min(x0,n.x);y0=Math.min(y0,n.y);x1=Math.max(x1,n.x+w);y1=Math.max(y1,n.y+h)});
+  var W=innerWidth-80,H=innerHeight-170,k=Math.min(1.2,W/(x1-x0||1),H/(y1-y0||1));
+  S.view={k:k,x:(innerWidth-(x1-x0)*k)/2-x0*k,y:(innerHeight-(y1-y0)*k)/2-y0*k+20};
+  applyView();save();
+}
+
+/* pointer: pan, drag branch, select */
+stage.addEventListener('pointerdown',function(e){
+  if(editing)return;
+  var t=e.target.closest('.n');
+  if(t){select(t.dataset.id);
+    drag={type:'node',id:t.dataset.id,sx:e.clientX,sy:e.clientY,moved:false,ids:subtree(t.dataset.id),o:{}};
+    drag.ids.forEach(function(i){drag.o[i]=[S.nodes[i].x,S.nodes[i].y]});
+  }else{drag={type:'pan',sx:e.clientX,sy:e.clientY,vx:S.view.x,vy:S.view.y};stage.classList.add('pan');
+    if(sel){sel=null;render()}}
+});
+window.addEventListener('pointermove',function(e){
+  if(!drag)return;var dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;
+  if(drag.type==='pan'){S.view.x=drag.vx+dx;S.view.y=drag.vy+dy;applyView()}
+  else{if(!drag.moved&&Math.abs(dx)+Math.abs(dy)<4)return;drag.moved=true;
+    drag.ids.forEach(function(i){var n=S.nodes[i];n.x=drag.o[i][0]+dx/S.view.k;n.y=drag.o[i][1]+dy/S.view.k;
+      var q=el(i);q.style.left=n.x+'px';q.style.top=n.y+'px'});lines()}
+});
+window.addEventListener('pointerup',function(){if(drag){if(drag.type==='node'&&drag.moved||drag.type==='pan')save();drag=null;stage.classList.remove('pan')}});
+stage.addEventListener('dblclick',function(e){var t=e.target.closest('.n');if(t){select(t.dataset.id);startEdit(t.dataset.id)}});
+stage.addEventListener('wheel',function(e){
+  e.preventDefault();var v=S.view,k=Math.min(2.5,Math.max(.25,v.k*(e.deltaY<0?1.1:.9)));
+  v.x=e.clientX-(e.clientX-v.x)*k/v.k;v.y=e.clientY-(e.clientY-v.y)*k/v.k;v.k=k;applyView();save();
+},{passive:false});
+
+window.addEventListener('keydown',function(e){
+  if(editing||document.body.classList.contains('locked')||document.body.classList.contains('notes')||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||document.querySelector('[role=alertdialog]'))return;
+  var k=e.key.toLowerCase();
+  if((e.ctrlKey||e.metaKey)&&(k==='z'||k==='y')){e.preventDefault();(k==='y'||e.shiftKey)?redo():undo();return}
+  if(k==='c'&&!e.ctrlKey&&!e.metaKey){toggleCol();return}
+  if(e.key==='Tab'){e.preventDefault();addChild()}
+  else if(e.key==='Enter'){e.preventDefault();addSibling()}
+  else if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();del()}
+  else if(e.key==='F2'){e.preventDefault();if(sel)startEdit(sel)}
+  else if(e.key===' '){e.preventDefault();toggleDone()}
+});
+
+/* toolbar */
+var sws=document.getElementById('sws');
+COLORS.forEach(function(c,i){var b=document.createElement('button');b.className='sw';b.style.background=c;b.title='Colour this branch';b.setAttribute('aria-label','Colour '+(i+1));b.onclick=function(){setColor(i)};sws.appendChild(b)});
+document.getElementById('bChild').onclick=addChild;
+document.getElementById('bSib').onclick=addSibling;
+document.getElementById('bEdit').onclick=function(){if(sel)startEdit(sel)};
+document.getElementById('bDone').onclick=toggleDone;
+document.getElementById('bDel').onclick=del;
+document.getElementById('bTidy').onclick=function(){tidy()};
+document.getElementById('bFit').onclick=fit;
+function download(name,text,type){var bl=new Blob([text],{type:type}),a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},500)}
+document.getElementById('bExp').onclick=function(){download('mind-map.json',JSON.stringify(S,null,2),'application/json');toast('Map saved to a file (not encrypted)')};
+var file=document.getElementById('file');
+document.getElementById('bImp').onclick=function(){file.click()};
+file.onchange=function(){
+  var f=file.files[0];if(!f)return;var r=new FileReader();
+  r.onload=function(){try{var d=JSON.parse(r.result);if(!d.nodes||!d.nodes[d.root])throw 0;S=d;sel=null;render();save();fit()}catch(e){toast('That file is not a mind map')}};
+  r.readAsText(f);file.value='';
+};
+document.getElementById('bNew').onclick=function(){
+  ask('Start a new map? Save a file first if you want to keep this one.','Start new map',function(){S=fresh();sel=S.root;render();save();setTimeout(function(){startEdit(S.root)},50)});
+};
+
+function toggleCol(){var n=sel&&S.nodes[sel];if(!n||!kids(sel).length)return;n.collapsed=!n.collapsed;render();tidy(true)}
+document.getElementById('bCol').onclick=toggleCol;
+document.getElementById('bUndo').onclick=undo;
+document.getElementById('bRedo').onclick=redo;
+document.getElementById('q').oninput=function(){q=this.value.trim();render()};
+function upd(k,v){if(sel&&S.nodes[sel]){S.nodes[sel][k]=v;save()}}
+document.getElementById('pDue').onchange=function(){upd('due',this.value);render()};
+document.getElementById('pPri').onchange=function(){upd('pri',+this.value);render()};
+var pn=document.getElementById('pNote');
+pn.oninput=function(){if(sel){S.nodes[sel].note=pn.value;persist()}};
+pn.onchange=function(){save();render()};
+document.getElementById('bCopy').onclick=function(){
+  var out=[];(function w(id,d){var n=S.nodes[id];
+    out.push('  '.repeat(d)+'- ['+(n.done?'x':' ')+'] '+n.text+(n.due?' (due '+n.due+')':'')+(n.pri?' [priority '+['','low','medium','high'][n.pri]+']':''));
+    kids(id).sort(function(a,b){return a.y-b.y}).forEach(function(c){w(c.id,d+1)})})(S.root,0);
+  var t=document.createElement('textarea');t.value=out.join('\n');document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('Outline copied. Paste it anywhere');
+};
+
+/* tabs, notes */
+function setTab(n){document.body.classList.toggle('notes',n==='notes');
+  document.getElementById('tMap').setAttribute('aria-selected',n==='map');
+  document.getElementById('tNotes').setAttribute('aria-selected',n==='notes');
+  if(n==='map'&&S)render()}
+function noteCount(){var c=0;STEPS.forEach(function(s,i){if((NOTES[i+1]||'').trim())c++});
+  document.getElementById('ncount').textContent=c+' of '+STEPS.length+' steps have notes'}
+function buildNotes(){var w=document.getElementById('cards');w.innerHTML='';
+  STEPS.forEach(function(s,i){var c=document.createElement('section'),k=i+1;
+    c.className='card'+((NOTES[k]||'').trim()?' has':'');c.style.setProperty('--c',COLORS[(i+1)%COLORS.length]);
+    c.innerHTML='<h3><span></span><b></b></h3><p class="qq"></p><textarea placeholder="Write your notes for this step"></textarea>';
+    c.querySelector('span').textContent=k;c.querySelector('b').textContent=s[0];c.querySelector('.qq').textContent=s[1];
+    var ta=c.querySelector('textarea');ta.value=NOTES[k]||'';ta.setAttribute('aria-label',s[0]+' notes');
+    ta.oninput=function(){NOTES[k]=ta.value;c.classList.toggle('has',!!ta.value.trim());noteCount();persist()};
+    w.appendChild(c)});
+  noteCount()}
+document.getElementById('tMap').onclick=function(){setTab('map')};
+document.getElementById('tNotes').onclick=function(){setTab('notes')};
+document.getElementById('bNCopy').onclick=function(){
+  var out=STEPS.map(function(s,i){return (i+1)+'. '+s[0]+' - '+s[1]+'\n'+((NOTES[i+1]||'').trim()||'(no notes yet)')}).join('\n\n');
+  var t=document.createElement('textarea');t.value=out;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();toast('Notes copied. Paste them anywhere')};
+
+/* login */
+var A=document.getElementById('auth'),af=document.getElementById('af'),a1=document.getElementById('a1'),a2=document.getElementById('a2'),aE=document.getElementById('aE'),aGo=document.getElementById('aGo'),aX=document.getElementById('aX'),aReset=document.getElementById('aReset');
+var T={unlock:['Unlock your planner','Enter your password to open your mind map and notes.','Unlock'],
+  setup:['Create a password','Choose a password with 8 or more characters. Your data is encrypted with it, and it cannot be recovered if you forget it.','Create and open'],
+  change:['Change password','Choose a new password. Save HTML again afterwards so the file on GitHub uses it too.','Change password']};
+function showAuth(m){amode=m;A.classList.add('show');
+  document.getElementById('aT').textContent=T[m][0];document.getElementById('aP').textContent=T[m][1];aGo.textContent=T[m][2];
+  a2.hidden=m==='unlock';aX.hidden=m!=='change';aReset.hidden=m!=='unlock';a1.value='';a2.value='';aE.textContent='';aGo.disabled=false;
+  a1.setAttribute('autocomplete',m==='unlock'?'current-password':'new-password');a1.focus()}
+function enterApp(isNew){A.classList.remove('show');document.body.classList.remove('locked');
+  sel=S.root;hist=[snapStr()];hi=0;buildNotes();setTab('map');if(isNew)tidy()}
+function lock(){flush().then(function(){CK=null;SALT=null;S=null;NOTES={};
+  world.querySelectorAll('.n').forEach(function(e){e.remove()});document.body.classList.add('locked');showAuth('unlock')})}
+function unlockWith(pw){var c=[localVault(),EMB].filter(Boolean);
+  return Promise.all(c.map(function(v){return openVault(v,pw).then(function(r){return r},function(){return null})})).then(function(rs){
+    rs=rs.filter(function(r){return r&&r.payload&&r.payload.map&&r.payload.map.nodes});if(!rs.length)return null;
+    rs.sort(function(a,b){return b.ts-a.ts});return rs[0]})}
+af.onsubmit=function(ev){ev.preventDefault();var pw=a1.value;aE.textContent='';
+  if(amode==='unlock'){aGo.disabled=true;aGo.textContent='Unlocking...';
+    unlockWith(pw).then(function(r){
+      if(!r){aE.textContent='That password is not right.';aGo.disabled=false;aGo.textContent=T.unlock[2];a1.select();return}
+      CK=r.key;SALT=r.salt;S=r.payload.map;NOTES=r.payload.notes||{};enterApp(false)
+    },function(){aE.textContent='Could not unlock. Try again.';aGo.disabled=false;aGo.textContent=T.unlock[2]});return}
+  if(pw.length<8){aE.textContent='Use at least 8 characters.';return}
+  if(pw!==a2.value){aE.textContent='The two passwords do not match.';return}
+  aGo.disabled=true;var salt=crypto.getRandomValues(new Uint8Array(16));
+  derive(pw,salt).then(function(k){CK=k;SALT=salt;
+    if(amode==='setup'){var o=oldMap();migrated=!!o;S=o||fresh();NOTES={};
+      return flush().then(function(){enterApp(!o);if(o)toast('Your earlier map was imported and locked')})}
+    return flush().then(function(){A.classList.remove('show');toast('Password changed. Save HTML to update the file')})
+  }).catch(function(){aE.textContent='Could not set the password. Try again.';aGo.disabled=false});
+};
+aX.onclick=function(){A.classList.remove('show')};
+aReset.onclick=function(){ask('Erase the data saved in this browser and start over? A copy inside the HTML file stays until you save a new one.','Erase and start over',function(){
+  try{localStorage.removeItem(LK)}catch(e){}EMB=null;showAuth('setup')})};
+document.getElementById('bLock').onclick=lock;
+document.getElementById('bPw').onclick=function(){showAuth('change')};
+document.getElementById('bHtml').onclick=function(){flush().then(function(v){if(!v)return;
+  var html=SRC.replace(/(<script id="vault" type="application\/json">)[\s\S]*?(<\/script>)/,function(m,x,y){return x+JSON.stringify(v)+y});
+  if(html===SRC&&!EMB){toast('Could not build the file');return}
+  download('Mind_map_planner.html',html,'text/html');toast('Saved. Upload this file to GitHub')})};
+document.addEventListener('visibilitychange',function(){if(document.hidden)flush()});
+
+if(!(window.crypto&&crypto.subtle)){showAuth('setup');aE.textContent='Encryption is not available here. Open this page over https or from a local file in a current browser.';aGo.disabled=true;a1.disabled=true;a2.disabled=true}
+else showAuth((localVault()||EMB)?'unlock':'setup');
+})();
+</script>
 </body>
 </html>
